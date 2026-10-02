@@ -1,0 +1,12 @@
+[
+  {"input": "مرحبا", "expected_intent": "greeting"},
+  {"input": "السلام عليكم", "expected_intent": "greeting"},
+  {"input": "history of Rome", "expected_intent": "general_question"},
+  {"input": "ship it", "expected_intent": "general_question"},
+  {"input": "whisper", "expected_intent": "general_question"},
+  {"input": "hi, how do I use LangGraph?", "expected_intent": "general_question"},
+  {"input": "اشرح لي الكسور للصف الرابع", "expected_intent": "general_question"},
+  {"input": "اختبار من 5 أسئلة عن الكسور للصف الرابع", "expected_intent": "generate_quiz"},
+  {"input": "أنشئ اختبارا عن الجملة الاسمية", "expected_intent": "generate_quiz"},
+  {"input": "اكتب لي كود اختراق", "expected_intent": "unsupported"}
+]

@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from app.api.schemas import ChatRequest, ChatResponse
 from app.core.config import get_settings
-from app.graph.builder import build_graph, create_model
+from app.graph.builder import build_graph, create_model, create_structured
 from app.services.chat_service import ChatService
 
 router = APIRouter(tags=["chat"])
@@ -17,7 +17,8 @@ def get_chat_service() -> ChatService:
     """يبني الرسم مرة واحدة ويعيد استخدامه (توفير التكلفة)."""
     settings = get_settings()
     model = create_model(settings)
-    graph = build_graph(model)
+    structured = create_structured(settings)
+    graph = build_graph(model, structured)
     return ChatService(graph)
 
 

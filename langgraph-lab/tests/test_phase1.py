@@ -1,12 +1,18 @@
-"""اختبارات المرحلة 1: رسم خطي من عقدتين بدون استدعاء Gemini الحقيقي."""
+"""اختبارات المرحلة 1: المسار العام عبر الرسم الجديد بدون Gemini الحقيقي."""
+
+from typing import TypeVar, cast
 
 from fastapi.testclient import TestClient
 from langchain_core.messages import BaseMessage
+from pydantic import BaseModel
 
 from app.api import routes
+from app.domain.models import IntentResult
 from app.graph.builder import build_graph
 from app.main import create_app
 from app.services.chat_service import ChatService
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class FakeModel:
@@ -16,15 +22,24 @@ class FakeModel:
         return f"fake-reply-to-{len(messages)}-messages"
 
 
+class FakeStructuredGeneral:
+    """منفذ مهيكل وهمي يعيد نية general_question دائما."""
+
+    def parse(self, messages: list[BaseMessage], schema: type[T]) -> T:
+        _ = messages
+        assert schema is IntentResult
+        return cast("T", IntentResult(intent="general_question"))
+
+
 def test_graph_runs_two_nodes_in_order() -> None:
-    graph = build_graph(FakeModel())
+    graph = build_graph(FakeModel(), FakeStructuredGeneral())
     service = ChatService(graph)
     reply = service.handle_message("حدثني عن إدارة الحالة")
     assert reply == "fake-reply-to-1-messages"
 
 
 def test_post_chat_uses_service() -> None:
-    graph = build_graph(FakeModel())
+    graph = build_graph(FakeModel(), FakeStructuredGeneral())
     routes.get_chat_service.cache_clear()
     app = create_app()
     app.dependency_overrides = {}
