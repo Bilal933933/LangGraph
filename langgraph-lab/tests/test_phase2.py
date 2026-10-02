@@ -55,3 +55,13 @@ def test_question_uses_llm() -> None:
     reply = service.handle_message("كيف أبني رسما؟")
     assert reply == "fake-reply-to-1-messages"
     assert model.calls == 1
+
+
+def test_regression_substrings_are_not_greetings() -> None:
+    assert classify_node(_state("history of Rome")) == {"intent": "chat"}
+    assert classify_node(_state("ship it")) == {"intent": "chat"}
+    assert classify_node(_state("whisper")) == {"intent": "chat"}
+
+
+def test_regression_question_beats_greeting_word() -> None:
+    assert classify_node(_state("hi, how do I use LangGraph?")) == {"intent": "question"}

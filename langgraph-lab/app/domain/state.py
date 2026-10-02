@@ -1,10 +1,12 @@
 """الحالة (State = الذاكرة المشتركة بين العقد)."""
 
-from typing import Annotated, NotRequired
+from typing import Annotated, Literal, NotRequired
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
+
+Intent = Literal["greeting", "question", "chat"]
 
 
 class ChatState(TypedDict):
@@ -15,4 +17,4 @@ class ChatState(TypedDict):
     """
 
     messages: Annotated[list[BaseMessage], add_messages]
-    intent: NotRequired[str]
+    intent: NotRequired[Intent]

@@ -9,7 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from app.core.config import Settings
 from app.core.errors import AppError, ErrorCode
 from app.domain.ports import ChatModelPort
-from app.domain.state import ChatState
+from app.domain.state import ChatState, Intent
 from app.graph.content import message_text
 from app.graph.nodes import classify_node, make_answer_node, make_greeting_node
 
@@ -37,9 +37,9 @@ def create_model(settings: Settings) -> ChatModelPort:
     return GeminiChatModel(api_key=key, model_name=settings.gemini_model)
 
 
-def route_by_intent(state: ChatState) -> str:
+def route_by_intent(state: ChatState) -> Intent:
     """دالة التوجيه: intent ← اسم العقدة التالية."""
-    return state.get("intent", "chat") if isinstance(state, dict) else "chat"
+    return state.get("intent", "chat")
 
 
 def build_graph(model: ChatModelPort) -> Any:
