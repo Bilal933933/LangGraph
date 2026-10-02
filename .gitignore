@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.uv/
+# Caches / tools
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+# Env / secrets
+.env
+# OS
+.DS_Store
+Thumbs.db
+# Node (frontend)
+node_modules/
+.next/
+dist/
+# Keep example env
+!.env.example
