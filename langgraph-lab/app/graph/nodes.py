@@ -6,16 +6,35 @@ from langchain_core.messages import AIMessage, BaseMessage
 
 from app.domain.ports import ChatModelPort
 from app.domain.state import ChatState
+from app.graph.content import message_text
 
 
-def classify_node(state: ChatState) -> dict[str, list[BaseMessage]]:
-    """العقدة 1: تصنيف شكلي (المرحلة 1 تمرير فقط).
+def classify_node(state: ChatState) -> dict[str, str]:
+    """العقدة 1: تصنيف قاعدي بسيط (المرحلة 2).
 
-    المرحلة 2 ستضيف توجيهاً شرطياً هنا. الآن نعيد تحديثاً فارغاً
-    لإثبات مفهوم العقدة دون تغيير الحالة.
+    greeting = تحية قصيرة → مسار سريع بلا LLM.
+    question/chat = الباقي → عقدة answer عبر LLM.
     """
-    _ = state  # موضع التوسعة في المرحلة 2
-    return {}
+
+    messages = state.get("messages", [])
+    text = message_text(messages[-1].content) if messages else ""
+    lowered = text.strip().lower()
+    greetings = ("مرحبا", "مرحباً", "سلام", "السلام", "hello", "hi", "hey", "salam")
+    questions = ("؟", "?", "ماذا", "كيف", "لماذا", "متى", "أين", "هل", "ما ", "what", "how", "why")
+    if any(g in lowered for g in greetings) and len(lowered) < 30:
+        return {"intent": "greeting"}
+    if any(q in lowered for q in questions):
+        return {"intent": "question"}
+    return {"intent": "chat"}
+
+
+def make_greeting_node() -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
+    """عقدة التحية: رد ثابت بلا LLM (مسار سريع)."""
+
+    def _greet(_state: ChatState) -> dict[str, list[BaseMessage]]:
+        return {"messages": [AIMessage(content="أهلاً بك! كيف أقدر أساعدك اليوم؟")]}
+
+    return _greet
 
 
 def make_answer_node(

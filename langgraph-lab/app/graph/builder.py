@@ -11,7 +11,7 @@ from app.core.errors import AppError, ErrorCode
 from app.domain.ports import ChatModelPort
 from app.domain.state import ChatState
 from app.graph.content import message_text
-from app.graph.nodes import classify_node, make_answer_node
+from app.graph.nodes import classify_node, make_answer_node, make_greeting_node
 
 
 class GeminiChatModel:
@@ -37,16 +37,27 @@ def create_model(settings: Settings) -> ChatModelPort:
     return GeminiChatModel(api_key=key, model_name=settings.gemini_model)
 
 
-def build_graph(model: ChatModelPort) -> Any:
-    """START ← [classify] ← [answer] ← END (حافتان خطيتان).
+def route_by_intent(state: ChatState) -> str:
+    """دالة التوجيه: intent ← اسم العقدة التالية."""
+    return state.get("intent", "chat") if isinstance(state, dict) else "chat"
 
-    الحواف (Edges) هنا خطية. الحواف الشرطية في المرحلة 2.
+
+def build_graph(model: ChatModelPort) -> Any:
+    """START ← [classify] ← شرطي → [greeting|answer] ← END.
+
+    greeting بلا LLM، وquestion/chat عبر LLM.
     النوع Any لأن CompiledStateGraph من مكتبة خارجية بدون أنواع دقيقة.
     """
     graph: StateGraph[ChatState] = StateGraph(ChatState)
     graph.add_node("classify", classify_node)
+    graph.add_node("greeting", make_greeting_node())  # type: ignore[arg-type]
     graph.add_node("answer", make_answer_node(model))  # type: ignore[arg-type]
     graph.add_edge(START, "classify")
-    graph.add_edge("classify", "answer")
+    graph.add_conditional_edges(
+        "classify",
+        route_by_intent,
+        {"greeting": "greeting", "question": "answer", "chat": "answer"},
+    )
+    graph.add_edge("greeting", END)
     graph.add_edge("answer", END)
     return graph.compile()

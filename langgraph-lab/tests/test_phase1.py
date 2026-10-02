@@ -19,7 +19,7 @@ class FakeModel:
 def test_graph_runs_two_nodes_in_order() -> None:
     graph = build_graph(FakeModel())
     service = ChatService(graph)
-    reply = service.handle_message("مرحبا")
+    reply = service.handle_message("حدثني عن إدارة الحالة")
     assert reply == "fake-reply-to-1-messages"
 
 
@@ -38,11 +38,11 @@ def test_post_chat_uses_service() -> None:
     routes.get_chat_service = _fake  # type: ignore[assignment]
     try:
         client = TestClient(app, raise_server_exceptions=False)
-        res = client.post("/chat", json={"message": "مرحبا"})
+        res = client.post("/chat", json={"message": "حدثني عن إدارة الحالة"})
         assert res.status_code == 200, res.text
         assert res.json()["reply"] == "fake-reply-to-1-messages"
     finally:
-        routes.get_chat_service = original  # type: ignore[assignment]
+        routes.get_chat_service = original
         routes.get_chat_service.cache_clear()
 
 
