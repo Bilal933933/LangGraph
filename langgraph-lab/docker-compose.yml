@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: langgraph-lab-db
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab123
+      POSTGRES_DB: langgraph_lab
+    ports:
+      - "5432:5432"
+    volumes:
+      - lab-pgdata:/var/lib/postgresql/data
+
+volumes:
+  lab-pgdata:

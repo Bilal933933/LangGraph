@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     app_name: str = "langgraph-lab"
     google_api_key: SecretStr = SecretStr("")
     gemini_model: str = "gemini-3.5-flash-lite"
+    database_url: SecretStr = SecretStr("")
 
 
 @lru_cache(maxsize=1)

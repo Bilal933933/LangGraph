@@ -28,6 +28,22 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.get("/health/db")
+def health_db() -> dict[str, str]:
+    """فحص اتصال DB فقط: SELECT 1. فارغ الرابط = غير مُعد."""
+    from app.db.engine import check_connection, get_engine
+
+    database_url = get_settings().database_url.get_secret_value().strip()
+    if not database_url:
+        return {"db": "not_configured"}
+    engine = get_engine(database_url)
+    try:
+        check_connection(engine)
+    finally:
+        engine.dispose()
+    return {"db": "ok"}
+
+
 @router.post("/chat", response_model=ChatResponse)
 def post_chat(payload: ChatRequest) -> ChatResponse:
     """يستقبل رسالة ← يعيد رد Gemini عبر الرسم."""

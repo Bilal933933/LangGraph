@@ -1,17 +1,36 @@
 """نقطة دخول FastAPI."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.engine import Engine
 
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.errors.handlers import register_error_handlers
+from app.db.engine import check_connection, dispose_engine, get_engine
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """بدء ← فحص اتصال DB إن وُجد الرابط، إيقاف ← إغلاق نظيف. بلا جداول."""
+    database_url = get_settings().database_url.get_secret_value().strip()
+    engine: Engine | None = None
+    if database_url:
+        engine = get_engine(database_url)
+        check_connection(engine)
+        app.state.db_engine = engine
+    yield
+    if engine is not None:
+        dispose_engine(engine)
 
 
 def create_app() -> FastAPI:
     """تبني التطبيق: الإعدادات + الأخطاء + المسارات."""
     settings = get_settings()
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(title=settings.app_name, lifespan=lifespan)
     # السماح للواجهة (مجلد frontend) بمناداة API من المتصفح.
     app.add_middleware(
         CORSMiddleware,
