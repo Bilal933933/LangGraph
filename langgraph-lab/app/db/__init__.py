@@ -1,5 +1,14 @@
 """حزمة الاتصال بقاعدة البيانات."""
 
-from app.db.engine import check_connection, dispose_engine, get_engine
+from app.db.engine import check_connection, create_tables, dispose_engine, get_engine
+from app.db.models import Base, Question, Quiz
 
-__all__ = ["check_connection", "dispose_engine", "get_engine"]
+__all__ = [
+    "Base",
+    "Question",
+    "Quiz",
+    "check_connection",
+    "create_tables",
+    "dispose_engine",
+    "get_engine",
+]

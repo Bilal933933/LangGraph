@@ -1,14 +1,20 @@
-"""الاتصال بقاعدة البيانات (مرحلة اتصال فقط، بلا جداول)."""
+"""الاتصال بقاعدة البيانات وإنشاء جداول العمل."""
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 from app.core.errors import AppError, ErrorCode
+from app.db.models import Base
 
 
 def get_engine(database_url: str) -> Engine:
     """رابط DB ← محرك مشترك. لا يتصل فعليا حتى أول استعلام."""
     return create_engine(database_url, pool_pre_ping=True)
+
+
+def create_tables(engine: Engine) -> None:
+    """ينشئ جدولي العمل (quizzes وquestions) إن غابا."""
+    Base.metadata.create_all(engine)
 
 
 def check_connection(engine: Engine) -> None:
