@@ -3,11 +3,13 @@
 from typing import TypeVar, cast
 
 from fastapi.testclient import TestClient
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
 from app.api import routes
 from app.domain.models import IntentResult
+from app.domain.ports import ChatModelPort
 from app.graph.builder import build_graph
 from app.main import create_app
 from app.services.chat_service import ChatService
@@ -18,8 +20,12 @@ T = TypeVar("T", bound=BaseModel)
 class FakeModel:
     """نموذج وهمي يحقق ChatModelPort للاختبار المعزول."""
 
-    def invoke(self, messages: list[BaseMessage]) -> str:
-        return f"fake-reply-to-{len(messages)}-messages"
+    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+        return AIMessage(content=f"fake-reply-to-{len(messages)}-messages")
+
+    def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
+        _ = tools
+        return self
 
 
 class FakeStructuredGeneral:
@@ -32,14 +38,14 @@ class FakeStructuredGeneral:
 
 
 def test_graph_runs_two_nodes_in_order() -> None:
-    graph = build_graph(FakeModel(), FakeStructuredGeneral())
+    graph = build_graph(FakeModel(), FakeStructuredGeneral(), [])
     service = ChatService(graph)
     reply = service.handle_message("حدثني عن إدارة الحالة")
     assert reply == "fake-reply-to-1-messages"
 
 
 def test_post_chat_uses_service() -> None:
-    graph = build_graph(FakeModel(), FakeStructuredGeneral())
+    graph = build_graph(FakeModel(), FakeStructuredGeneral(), [])
     routes.get_chat_service.cache_clear()
     app = create_app()
     app.dependency_overrides = {}

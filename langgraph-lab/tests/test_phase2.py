@@ -2,10 +2,12 @@
 
 from typing import TypeVar, cast
 
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
 from app.domain.models import Intent, IntentResult, QuizRequest
+from app.domain.ports import ChatModelPort
 from app.graph.builder import build_graph
 from app.graph.edges import route_after_extract, route_by_intent
 from app.services.chat_service import ChatService
@@ -19,9 +21,13 @@ class FakeChat:
     def __init__(self) -> None:
         self.calls = 0
 
-    def invoke(self, messages: list[BaseMessage]) -> str:
+    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
         self.calls += 1
-        return f"fake-reply-to-{len(messages)}-messages"
+        return AIMessage(content=f"fake-reply-to-{len(messages)}-messages")
+
+    def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
+        _ = tools
+        return self
 
 
 class FakeStructured:
@@ -68,7 +74,7 @@ class FakeStructuredAlwaysFail:
 
 def _service(intent: Intent, quiz: QuizRequest | None = None) -> tuple[ChatService, FakeChat]:
     chat = FakeChat()
-    return ChatService(build_graph(chat, FakeStructured(intent=intent, quiz=quiz))), chat
+    return ChatService(build_graph(chat, FakeStructured(intent=intent, quiz=quiz), [])), chat
 
 
 def test_greeting_skips_llm() -> None:
@@ -89,12 +95,12 @@ def test_unsupported_declines() -> None:
     assert chat.calls == 0
 
 
-def test_complete_quiz_confirms() -> None:
+def test_complete_quiz_confirms_then_agent_runs() -> None:
     quiz = QuizRequest(topic="الكسور", grade_level="الصف الرابع", num_questions=5)
     service, chat = _service("generate_quiz", quiz)
     reply = service.handle_message("اختبار من 5 أسئلة عن الكسور للصف الرابع")
-    assert "5" in reply and "الكسور" in reply
-    assert chat.calls == 0
+    assert reply.startswith("fake-reply-to-")
+    assert chat.calls == 1
 
 
 def test_missing_fields_asks_clarification() -> None:
@@ -106,14 +112,13 @@ def test_missing_fields_asks_clarification() -> None:
 
 
 def test_classify_retries_then_succeeds() -> None:
-    service, _ = _service("greeting")
-    service = ChatService(build_graph(FakeChat(), FakeStructuredFailOnce()))
+    service = ChatService(build_graph(FakeChat(), FakeStructuredFailOnce(), []))
     assert "أهلاً بك" in service.handle_message("مرحبا")
 
 
 def test_classify_falls_back_to_general() -> None:
     chat = FakeChat()
-    service = ChatService(build_graph(chat, FakeStructuredAlwaysFail()))
+    service = ChatService(build_graph(chat, FakeStructuredAlwaysFail(), []))
     assert service.handle_message("???") == "fake-reply-to-1-messages"
     assert chat.calls == 1
 

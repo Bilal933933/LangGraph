@@ -1,11 +1,10 @@
-"""دوال التوجيه (Edges = شروط الانتقال بين العقد)."""
+"""موجه النية (classify ← فرع حسب نية المعلم)."""
 
 from typing import Literal
 
 from app.domain.state import ChatState
 
 RouteTarget = Literal["greeting", "answer", "decline", "extract"]
-ExtractTarget = Literal["ask_clarification", "confirm_ready"]
 
 
 def route_by_intent(state: ChatState) -> RouteTarget:
@@ -18,10 +17,3 @@ def route_by_intent(state: ChatState) -> RouteTarget:
     if intent == "unsupported":
         return "decline"
     return "answer"
-
-
-def route_after_extract(state: ChatState) -> ExtractTarget:
-    """الحقول الناقصة ← استيضاح أو تأكيد الاكتمال."""
-    if state.get("missing_fields"):
-        return "ask_clarification"
-    return "confirm_ready"

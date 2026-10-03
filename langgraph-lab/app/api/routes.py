@@ -1,15 +1,20 @@
 """المسارات (Routes = نقاط استقبال HTTP بدون منطق)."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter
 
 from app.api.schemas import ChatRequest, ChatResponse
 from app.core.config import get_settings
 from app.graph.builder import build_graph, create_model, create_structured
+from app.graph.tools import make_fetch_lesson_tool
+from app.repositories.json_lesson import JsonLessonRepository
 from app.services.chat_service import ChatService
 
 router = APIRouter(tags=["chat"])
+
+LESSONS_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "lessons.json"
 
 
 @lru_cache(maxsize=1)
@@ -18,7 +23,8 @@ def get_chat_service() -> ChatService:
     settings = get_settings()
     model = create_model(settings)
     structured = create_structured(settings)
-    graph = build_graph(model, structured)
+    tools = [make_fetch_lesson_tool(JsonLessonRepository(LESSONS_FILE))]
+    graph = build_graph(model, structured, tools)
     return ChatService(graph)
 
 
