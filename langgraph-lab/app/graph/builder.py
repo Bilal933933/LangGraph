@@ -8,20 +8,17 @@ from langgraph.prebuilt import ToolNode
 
 from app.core.config import Settings
 from app.core.errors import AppError, ErrorCode
-from app.domain.ports import ChatModelPort, StructuredOutputPort
+from app.domain.ports import (
+    ChatModelPort,
+    StructuredOutputPort,
+    TeacherDirectoryPort,
+    TeacherProfilePort,
+    TeacherProfileWriterPort,
+)
 from app.domain.state import ChatState
 from app.graph.adapters import GeminiChatModel, GeminiStructuredModel
-from app.graph.edges import route_after_agent, route_after_extract, route_by_intent
-from app.graph.nodes import (
-    ask_clarification_node,
-    confirm_ready_node,
-    make_agent_node,
-    make_answer_node,
-    make_classify_node,
-    make_decline_node,
-    make_extract_node,
-    make_greeting_node,
-)
+from app.graph.edges.registry import core_conditional_routes, core_static_edges
+from app.graph.nodes.registry import core_nodes
 
 
 def _require_key(settings: Settings) -> str:
@@ -46,52 +43,45 @@ def create_structured(settings: Settings) -> StructuredOutputPort:
 
 
 def build_graph(
-    model: ChatModelPort, structured: StructuredOutputPort, tools: list[BaseTool]
+    model: ChatModelPort,
+    structured: StructuredOutputPort,
+    tools: list[BaseTool],
+    checkpointer: Any | None = None,
+    teacher_directory: TeacherDirectoryPort | None = None,
+    profile_writer: TeacherProfileWriterPort | None = None,
+    profile_store: TeacherProfilePort | None = None,
 ) -> Any:
-    """START ← [classify] ← شرطي → [greeting|answer|decline|extract] ← END.
+    """START ← [load_profile → extract_profile_info → apply_profile → classify] ← شرطي → ....
 
-    extract ← شرطي → [ask_clarification → END | confirm_ready → agent ⇄ tools].
+    النهايات عادية ← END. سؤال الباقي تعليم في موجه النموذج (answer وquiz_agent)
+    لا عقدة، واستخراج update_profile الصريح ما زال يعمل كما كان.
+
+    extract ← شرطي → [ask_clarification → END | confirm_ready → quiz_agent ⇄ quiz_tools].
+    extract_profile ← شرطي → [save_profile → END | ask_profile_name → END].
+    كل وكيل له أدواته وحلقته الخاصة (quiz_agent ⇄ quiz_tools).
     النوع Any لأن CompiledStateGraph من مكتبة خارجية بدون أنواع دقيقة.
+    checkpointer فارغ = بلا حفظ بين الطلبات (توافق خلفي للاختبارات).
+
+    قاعدة التوسع: العقد والموجهات تأتي من السجلات
+    (nodes/registry.py + edges/registry.py). وكيل جديد = ملف
+    `*_agent.py` + أدواته + سطر في كل سجل، بدون تعديل هذه الدالة.
     """
-    bound = model.bind_tools(tools)
+    quiz_tools = list(tools)
+    bound_quiz = model.bind_tools(quiz_tools)
     graph: StateGraph[ChatState] = StateGraph(ChatState)
-    graph.add_node("classify", make_classify_node(structured))  # type: ignore[call-overload]
-    graph.add_node("greeting", make_greeting_node())  # type: ignore[call-overload]
-    graph.add_node("answer", make_answer_node(model))  # type: ignore[call-overload]
-    graph.add_node("decline", make_decline_node())  # type: ignore[call-overload]
-    graph.add_node("extract", make_extract_node(structured))  # type: ignore[call-overload]
-    graph.add_node("ask_clarification", ask_clarification_node)
-    graph.add_node("confirm_ready", confirm_ready_node)
-    graph.add_node("agent", make_agent_node(bound))  # type: ignore[arg-type]
-    graph.add_node("tools", ToolNode(tools))
-    graph.add_edge(START, "classify")
-    graph.add_conditional_edges(
-        "classify",
-        route_by_intent,
-        {
-            "greeting": "greeting",
-            "answer": "answer",
-            "decline": "decline",
-            "extract": "extract",
-        },
+    nodes = core_nodes(
+        model, structured, bound_quiz, teacher_directory, profile_writer, profile_store
     )
-    graph.add_conditional_edges(
-        "extract",
-        route_after_extract,
-        {
-            "ask_clarification": "ask_clarification",
-            "confirm_ready": "confirm_ready",
-        },
-    )
-    graph.add_edge("confirm_ready", "agent")
-    graph.add_conditional_edges(
-        "agent",
-        route_after_agent,
-        {"tools": "tools", "end": END},
-    )
-    graph.add_edge("tools", "agent")
-    graph.add_edge("greeting", END)
-    graph.add_edge("answer", END)
-    graph.add_edge("decline", END)
-    graph.add_edge("ask_clarification", END)
-    return graph.compile()
+    for name, node in nodes.items():
+        graph.add_node(name, node)
+    graph.add_node("quiz_tools", ToolNode(quiz_tools))
+    for route in core_conditional_routes():
+        targets = {k: (END if v == "end" else v) for k, v in route.targets.items()}
+        graph.add_conditional_edges(route.source, route.router, targets)  # type: ignore[arg-type]
+    for edge in core_static_edges():
+        source = START if edge.source == "__start__" else edge.source
+        target = END if edge.target == "__end__" else edge.target
+        graph.add_edge(source, target)
+    if checkpointer is None:
+        return graph.compile()
+    return graph.compile(checkpointer=checkpointer)

@@ -7,15 +7,28 @@ export type ChatMessage = {
   createdAt: number;
 };
 
-export type Chat = {
-  id: string;
+export type ServerChatMessage = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string | null;
+};
+
+export type ConversationItem = {
+  id: number;
   title: string;
-  messages: ChatMessage[];
-  createdAt: number;
-  updatedAt: number;
+  message_count: number;
+  last_message: string;
+  updated_at: string | null;
+};
+
+export type ConversationDetail = {
+  id: number;
+  title: string;
+  messages: ServerChatMessage[];
 };
 
 export type LastSent = {
-  chatId: string;
+  conversationId: number;
   text: string;
 } | null;

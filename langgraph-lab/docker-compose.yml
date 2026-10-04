@@ -4,7 +4,7 @@ services:
     container_name: langgraph-lab-db
     environment:
       POSTGRES_USER: lab
-      POSTGRES_PASSWORD: lab123
+      POSTGRES_PASSWORD: 12345678
       POSTGRES_DB: langgraph_lab
     ports:
       - "5432:5432"

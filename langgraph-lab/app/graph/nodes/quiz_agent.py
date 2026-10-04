@@ -1,0 +1,47 @@
+"""وكيل الاختبارات (Quiz Agent = نموذج + أداة الدروس + حلقة قرار).
+
+قاعدة الفصل: هذا الملف لوكيل الاختبارات فقط. أي وكيل جديد
+(مناهج، تقييم، ...) ينشأ في ملف `*_agent.py` خاص به مع أدواته
+وحلقته، ولا يضاف هنا أبدا.
+"""
+
+from collections.abc import Callable
+
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+
+from app.domain.ports import ChatModelPort
+from app.domain.state import ChatState
+from app.graph.content import message_text
+from app.graph.nodes.profile import profile_ask_instruction
+from app.graph.window import CONTEXT_WINDOW_MESSAGES, select_window
+
+QUIZ_AGENT_SYSTEM = """أنت مولد اختبارات لمساعد المعلم. عندك أداة fetch_lesson لجلب محتوى الدرس.
+استدعها أولا بموضوع الطلب، ثم ولد الاختبار من المحتوى المرجع. الردود بالعربية."""
+
+
+def make_quiz_agent_node(
+    model: ChatModelPort,
+) -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
+    """مصنع وكيل الاختبارات: يغلق على نموذج مربوط بأدوات الاختبارات فقط."""
+
+    def _quiz_agent(state: ChatState) -> dict[str, list[BaseMessage]]:
+        request = state.get("quiz_request")
+        topic = request.topic if request and request.topic else ""
+        messages = list(state["messages"])
+        last_text = message_text(messages[-1].content) if messages else ""
+        history = select_window(messages, CONTEXT_WINDOW_MESSAGES)
+        prompt: list[BaseMessage] = [SystemMessage(content=QUIZ_AGENT_SYSTEM)]
+        snapshot = state.get("profile_snapshot")
+        if isinstance(snapshot, dict):
+            instruction = profile_ask_instruction(dict(snapshot))
+            if instruction is not None:
+                prompt.append(SystemMessage(content=instruction))
+        prompt += [
+            HumanMessage(content=f"ولد اختبارا عن: {topic or last_text}"),
+            *history[-4:],
+        ]
+        reply = model.invoke(prompt)
+        reply.name = "quiz_agent"
+        return {"messages": [reply]}
+
+    return _quiz_agent

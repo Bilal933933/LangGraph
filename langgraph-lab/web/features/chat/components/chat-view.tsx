@@ -1,23 +1,42 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useChatStore } from "../store/chat-store";
+import {
+  useConversationDetail,
+  useConversations,
+} from "../hooks/use-conversations";
+import type { ChatMessage } from "../types";
 import { AppSidebar } from "./app-sidebar";
 import { GreetingHero } from "./greeting-hero";
 import { MessageComposer } from "./message-composer";
 import { MessageList } from "./message-list";
+import { MessagesSkeleton } from "./messages-skeleton";
 
 const MAX_LENGTH = 4000;
 
-export function ChatView() {
-  const chats = useChatStore((state) => state.chats);
-  const activeChatId = useChatStore((state) => state.activeChatId);
+function toUiMessages(
+  messages: { id: number; role: "user" | "assistant"; content: string; created_at: string | null }[],
+): ChatMessage[] {
+  return messages.map((message) => ({
+    id: `msg-${message.id}`,
+    role: message.role,
+    text: message.content,
+    createdAt: message.created_at ? Date.parse(message.created_at) : 0,
+  }));
+}
+
+export function ChatView({ conversationId }: { conversationId: number | null }) {
+  const router = useRouter();
   const sidebarOpen = useChatStore((state) => state.sidebarOpen);
   const setSidebarOpen = useChatStore((state) => state.setSidebarOpen);
-  const { send, sending, retryLast } = useSendMessage();
+  const { data: chats = [] } = useConversations();
+  const detail = useConversationDetail(conversationId);
+  const { send, sending, retryLast } = useSendMessage(conversationId);
   const [draft, setDraft] = useState("");
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -25,9 +44,10 @@ export function ChatView() {
     () => false,
   );
 
-  const activeChat = chats.find((chat) => chat.id === activeChatId);
-  const messages = activeChat?.messages ?? [];
-  const isEmpty = messages.length === 0 && !sending;
+  const activeChat = chats.find((chat) => chat.id === conversationId);
+  const messages = detail.data ? toUiMessages(detail.data.messages) : [];
+  const showDetailSkeleton = conversationId !== null && detail.isPending;
+  const isEmpty = messages.length === 0 && !sending && !detail.isPending;
 
   function submit(text: string) {
     const clean = text.trim().slice(0, MAX_LENGTH);
@@ -61,11 +81,22 @@ export function ChatView() {
             </Button>
           )}
           <h1 className="truncate text-sm font-medium">
-            {activeChat?.title ?? "مساعد البحث الذكي"}
+            {activeChat?.title || detail.data?.title || "محادثة جديدة"}
           </h1>
         </header>
 
-        {isEmpty ? (
+        {detail.isError ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+            تعذر تحميل المحادثة — ربما حُذفت.
+            <Button type="button" variant="outline" onClick={() => router.push("/chat")}>
+              محادثة جديدة
+            </Button>
+          </div>
+        ) : showDetailSkeleton ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <MessagesSkeleton count={3} />
+          </div>
+        ) : isEmpty ? (
           <GreetingHero onPick={submit} />
         ) : (
           <MessageList

@@ -1,65 +1,63 @@
 "use client";
 
-import { useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { postChat } from "../lib/chat-api";
-import {
-  createMessageId,
-  ensureActiveChatId,
-  useChatStore,
-} from "../store/chat-store";
+import { createConversation, postConversationMessage } from "../lib/chat-api";
+import { useChatStore } from "../store/chat-store";
+import { conversationKey, conversationsKey } from "./use-conversations";
 
-export function useSendMessage() {
-  const targetRef = useRef<string | null>(null);
+type SendInput = { text: string; conversationId: number | null };
+
+export function useSendMessage(pageConversationId: number | null) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (text: string) => {
-      const chatId = ensureActiveChatId();
-      targetRef.current = chatId;
-      useChatStore.getState().pushMessage(chatId, {
-        id: createMessageId(),
-        role: "user",
-        text,
-        createdAt: Date.now(),
-      });
-      useChatStore.getState().setLastSent({ chatId, text });
-      const reply = await postChat(text);
-      return { chatId, reply };
+    mutationFn: async ({ text, conversationId }: SendInput) => {
+      let targetId = conversationId;
+      if (targetId === null) {
+        const created = await createConversation();
+        targetId = created.id;
+        queryClient.invalidateQueries({ queryKey: conversationsKey });
+      }
+      useChatStore.getState().setLastSent({ conversationId: targetId, text });
+      const reply = await postConversationMessage(targetId, text);
+      return { conversationId: targetId, reply };
     },
-    onSuccess: ({ chatId, reply }) => {
-      useChatStore.getState().pushMessage(chatId, {
-        id: createMessageId(),
-        role: "assistant",
-        text: reply,
-        createdAt: Date.now(),
-      });
+    onSuccess: ({ conversationId: targetId }) => {
       useChatStore.getState().setLastSent(null);
+      queryClient.invalidateQueries({
+        queryKey: conversationKey(targetId),
+      });
+      queryClient.invalidateQueries({ queryKey: conversationsKey });
+      if (pageConversationId === null) router.push(`/chat/${targetId}`);
     },
     onError: (error) => {
-      const chatId = targetRef.current;
       const message =
         error instanceof Error ? error.message : "حدث خطأ غير متوقع.";
-      if (chatId) {
-        useChatStore.getState().pushMessage(chatId, {
-          id: createMessageId(),
-          role: "error",
-          text: message,
-          createdAt: Date.now(),
-        });
-      }
       toast.error("تعذر إرسال الرسالة", {
-        description: "تأكد أن السيرفر يعمل وأن GOOGLE_API_KEY مضبوط.",
+        description: message,
+        action: {
+          label: "إعادة المحاولة",
+          onClick: () => retryLast(),
+        },
       });
     },
   });
 
+  function send(text: string) {
+    mutation.mutate({ text, conversationId: pageConversationId });
+  }
+
   function retryLast() {
     const lastSent = useChatStore.getState().lastSent;
     if (!lastSent || mutation.isPending) return;
-    targetRef.current = lastSent.chatId;
-    mutation.mutate(lastSent.text);
+    if (pageConversationId === null) {
+      router.push(`/chat/${lastSent.conversationId}`);
+    }
+    mutation.mutate({ text: lastSent.text, conversationId: lastSent.conversationId });
   }
 
-  return { send: mutation.mutate, sending: mutation.isPending, retryLast };
+  return { send, sending: mutation.isPending, retryLast };
 }

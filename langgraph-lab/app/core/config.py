@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     google_api_key: SecretStr = SecretStr("")
     gemini_model: str = "gemini-3.5-flash-lite"
     database_url: SecretStr = SecretStr("")
+    jwt_secret: SecretStr = SecretStr("dev-only-secret-change-me-32-chars!")
+    jwt_access_minutes: int = 15
+    jwt_refresh_days: int = 30
 
 
 @lru_cache(maxsize=1)

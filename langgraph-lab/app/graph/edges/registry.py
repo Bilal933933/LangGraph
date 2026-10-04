@@ -1,0 +1,91 @@
+"""سجل الحواف (Routes Registry = قائمة موجهات الرسم للتوسع).
+
+القاعدة: أي مسار جديد = دالة توجيه في `edges/<feature>.py`
++ سطر تسجيل واحد هنا فقط. `builder.py` يلف على السجل ولا يتعدل.
+"""
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+
+from app.domain.state import ChatState
+from app.graph.edges.extract import route_after_extract
+from app.graph.edges.intent import route_by_intent
+from app.graph.edges.loop import route_after_quiz_agent
+from app.graph.edges.profile import route_after_profile_extract
+
+
+@dataclass(frozen=True)
+class ConditionalRoute:
+    """موجه مشروط واحد: المصدر + دالة القرار + الأهداف."""
+
+    source: str
+    router: Callable[[ChatState], str]
+    targets: Mapping[str, str]
+
+
+@dataclass(frozen=True)
+class StaticEdge:
+    """حافة ثابتة: من ← إلى دائما."""
+
+    source: str
+    target: str
+
+
+def core_conditional_routes() -> list[ConditionalRoute]:
+    """موجهات النواة الحالية، مرتبة حسب التنفيذ."""
+    return [
+        ConditionalRoute(
+            source="classify",
+            router=route_by_intent,
+            targets={
+                "greeting": "greeting",
+                "answer": "answer",
+                "decline": "decline",
+                "extract": "extract",
+                "extract_profile": "extract_profile",
+            },
+        ),
+        ConditionalRoute(
+            source="extract",
+            router=route_after_extract,
+            targets={
+                "ask_clarification": "ask_clarification",
+                "confirm_ready": "confirm_ready",
+            },
+        ),
+        ConditionalRoute(
+            source="quiz_agent",
+            router=route_after_quiz_agent,
+            targets={"quiz_tools": "quiz_tools", "end": "end"},
+        ),
+        ConditionalRoute(
+            source="extract_profile",
+            router=route_after_profile_extract,
+            targets={
+                "save_profile": "save_profile",
+                "ask_profile_name": "ask_profile_name",
+            },
+        ),
+    ]
+
+
+def core_static_edges() -> list[StaticEdge]:
+    """حواف النواة الثابتة (END تعالج في builder).
+
+    البداية تحمل الملف وتستنتجه وتطبقه بصمت قبل التصنيف،
+    والنهايات عادية لأن السؤال تعليم في الموجه لا عقدة.
+    """
+    return [
+        StaticEdge(source="__start__", target="load_profile"),
+        StaticEdge(source="load_profile", target="extract_profile_info"),
+        StaticEdge(source="extract_profile_info", target="apply_profile"),
+        StaticEdge(source="apply_profile", target="classify"),
+        StaticEdge(source="confirm_ready", target="quiz_agent"),
+        StaticEdge(source="quiz_tools", target="quiz_agent"),
+        StaticEdge(source="greeting", target="__end__"),
+        StaticEdge(source="answer", target="__end__"),
+        StaticEdge(source="decline", target="__end__"),
+        StaticEdge(source="ask_clarification", target="__end__"),
+        StaticEdge(source="save_profile", target="__end__"),
+        StaticEdge(source="ask_profile_name", target="__end__"),
+    ]
