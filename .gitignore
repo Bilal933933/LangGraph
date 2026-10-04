@@ -21,3 +21,7 @@ node_modules/
 dist/
 # Keep example env
 !.env.example
+# Grammar books (local data ~30MB, not in git)
+langgraph-lab/data/references/
+langgraph-lab/data/textbook/
+grammar-tutor/
