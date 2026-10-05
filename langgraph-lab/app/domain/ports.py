@@ -80,3 +80,25 @@ class TeacherProfilePort(Protocol):
     def save_profile(self, teacher_id: int, patch: dict[str, object]) -> dict[str, object]:
         """يطبق القيم المنظفة غير الفارغة ← اللقطة الكاملة بعد الحفظ."""
         ...
+
+
+class WebSearchPort(Protocol):
+    """عقد بحث الويب (قدرة لاحقة، ليست Core).
+
+    الشكل موحد مع RAG: {title, text, url} ليسهل الدمج والعرض.
+    """
+
+    def search(self, query: str, limit: int = 5) -> list[dict[str, object]]:
+        """نص السؤال ← نتائج {title, text, url} الأعلى صلة."""
+        ...
+
+
+class KnowledgeSourcePort(Protocol):
+    """عقد القراءة الدقيقة: معرف مقطع ظهر في search ← نصه الكامل.
+
+    القيد: الأداة لا تقبل مسارًا حرًا أبدًا، بل id صحيح موجب فقط.
+    """
+
+    def get_source(self, chunk_id: int) -> dict[str, object] | None:
+        """معرف المقطع ← {id, title, text, subject, lesson} أو None."""
+        ...

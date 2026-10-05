@@ -1,4 +1,4 @@
-"""أدوات الوكيل (Tools = قدرات يناديها النموذج)."""
+"""أداة جلب الدرس (مصنع واحد لكل ملف)."""
 
 from langchain_core.tools import BaseTool, tool
 

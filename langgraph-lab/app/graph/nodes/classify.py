@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from app.domain.models import IntentResult
+from app.domain.models import DEFAULT_INTENT, IntentResult
 from app.domain.ports import StructuredOutputPort
 from app.domain.state import ChatState
 from app.graph.content import message_text
@@ -42,6 +42,6 @@ def make_classify_node(
                 return {"intent": result.intent}
             except Exception:
                 continue
-        return {"intent": "general_question"}
+        return {"intent": DEFAULT_INTENT}
 
     return _classify

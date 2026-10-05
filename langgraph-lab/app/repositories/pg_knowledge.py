@@ -101,6 +101,35 @@ class PgKnowledgeRepository:
         finally:
             engine.dispose()
 
+    def get_source(self, chunk_id: int) -> dict[str, object] | None:
+        """معرف المقطع ← {id, title, text, subject, lesson} أو None.
+
+        حارس: غير موجب ← None بلا استعلام (يمنع حقن المسارات).
+        """
+        if not isinstance(chunk_id, int) or chunk_id <= 0:
+            return None
+        engine = get_engine(self._url)
+        try:
+            with Session(engine) as session:
+                row = session.execute(
+                    text(
+                        "SELECT id, title, text, subject, lesson "
+                        "FROM knowledge_chunks WHERE id = :i LIMIT 1"
+                    ),
+                    {"i": chunk_id},
+                ).first()
+                if row is None or not str(row[2] or "").strip():
+                    return None
+                return {
+                    "id": int(row[0]),
+                    "title": str(row[1] or "").strip(),
+                    "text": str(row[2] or "").strip()[:4000],
+                    "subject": str(row[3] or "").strip(),
+                    "lesson": str(row[4] or "").strip(),
+                }
+        finally:
+            engine.dispose()
+
     def search(self, query: str, limit: int = 5) -> list[dict[str, object]]:
         """نص السؤال ← مقاطع {title, text, subject, lesson} الأعلى صلة."""
         cleaned = query.strip()

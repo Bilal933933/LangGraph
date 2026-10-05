@@ -12,9 +12,15 @@ from app.domain.models import Intent, LessonPlan, LessonRequest, QuizRequest
 def _append_sections(
     left: list[dict[str, object]], right: list[dict[str, object]] | dict[str, object]
 ) -> list[dict[str, object]]:
-    """مخفض التجميع للعمال المتوازيين: قوائم ← دمج بلا فقد."""
+    """مخفض التجميع للعمال المتوازيين: قوائم ← دمج بلا فقد.
+
+    قاعدة التصفير: قائمة فارغة تعني بداية طلب جديد ← تُهمل القديمة.
+    بلا هذا يتسرب قسم خطة سابقة إلى خطة لاحقة في نفس thread.
+    """
     if isinstance(right, dict):
         return [*left, right]
+    if not right:
+        return []
     return [*left, *right]
 
 
@@ -32,6 +38,16 @@ class ChatState(TypedDict):
     العقدة المحتاجة من المستودع عند الوصول إليها، ولا تخزن في
     اللقطة (Checkpoint) لتجنب نسخة ثانية من قاعدة البيانات.
     أي حقل جديد يضاف كـ NotRequired فقط عند ظهور ميزة تحتاجه.
+
+    ملكية الحقول (Phase 2):
+    - حقن Runtime كل دور: teacher_id (لا اعتماد على Checkpoint له).
+    - قرار Graph مؤقت: intent.
+    - تراكم متعدد الأدوار: quiz_request, lesson_request, missing_fields.
+    - مؤقت يُصفّر بعد الاستخدام: pending_profile, pending_profile_name.
+    - ناتج الدور: retrieved_sources.
+    - Send فقط: section_task (يُصفّر في plan_merge).
+    - تجميع متوازي: plan_sections (يُصفّر في plan_extract الجديد).
+    - ناتج نهائي: plan_draft.
     """
 
     messages: Annotated[list[BaseMessage], add_messages]

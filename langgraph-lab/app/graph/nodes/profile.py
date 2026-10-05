@@ -198,11 +198,11 @@ def make_apply_profile_node(
     def _apply(state: ChatState) -> dict[str, object]:
         teacher_id = state.get("teacher_id")
         if store is None or not isinstance(teacher_id, int):
-            return {}
+            return {"pending_profile": None}
         try:
             stored = dict(state.get("profile_snapshot") or store.load_profile(teacher_id))
         except Exception:
-            return {}
+            return {"pending_profile": None}
         pending = dict(state.get("pending_profile") or {})
         patch: dict[str, object] = {}
         for field in _PROFILE_FIELDS:
@@ -219,11 +219,11 @@ def make_apply_profile_node(
             elif _clean_str(pending.get(field)) and not _is_filled(stored.get(field)):
                 patch[field] = _clean_str(pending.get(field))
         if not patch:
-            return {"profile_snapshot": stored}
+            return {"profile_snapshot": stored, "pending_profile": None}
         try:
             updated = store.save_profile(teacher_id, patch)
         except Exception:
-            return {"profile_snapshot": stored}
-        return {"profile_snapshot": updated}
+            return {"profile_snapshot": stored, "pending_profile": None}
+        return {"profile_snapshot": updated, "pending_profile": None}
 
     return _apply

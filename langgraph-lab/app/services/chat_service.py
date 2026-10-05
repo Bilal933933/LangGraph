@@ -24,8 +24,21 @@ class ChatService:
 
     @staticmethod
     def thread_id_for_conversation(user_id: int, conversation_id: int) -> str:
-        """(المالك، المحادثة) ← thread_id. الصيغة ثابتة وقصيرة (<255 حرفًا)."""
+        """(المالك، المحادثة) ← thread_id. الصيغة ثابتة وقصيرة (<255 حرفًا).
+
+        العلاقة: Conversation (سجل دائم) ← thread (تنفيذ) ← Checkpoint.
+        Message DB للعرض فقط ولا يُحقن في Graph.
+        """
         return f"t{user_id}:c{conversation_id}"
+
+    @staticmethod
+    def parse_thread_id(thread_id: str) -> tuple[int | None, int | None]:
+        """thread_id ← (user_id, conversation_id) أو (None, None) عند الشكل الغريب."""
+        try:
+            user_part, conv_part = thread_id.strip().split(":")
+            return int(user_part[1:]), int(conv_part[1:])
+        except Exception:
+            return None, None
 
     def handle_message(
         self, message: str, thread_id: str = "default", teacher_id: int | None = None

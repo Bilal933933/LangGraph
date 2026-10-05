@@ -5,12 +5,13 @@ from typing import Literal
 from langchain_core.messages import AIMessage, BaseMessage
 
 from app.core.trace import get_logger
+from app.domain.models import AMBIGUOUS_INTENTS
 from app.domain.state import ChatState
 
 RouteTarget = Literal["greeting", "answer", "decline", "extract", "plan_extract", "extract_profile"]
 
-#: نوايا غامضة لا تقطع استكمال طلب ناقص.
-_AMBIGUOUS_INTENTS = ("general_question", "unsupported", "greeting")
+#: نوايا غامضة لا تقطع استكمال طلب ناقص (مركزية في domain.models).
+_AMBIGUOUS_INTENTS = AMBIGUOUS_INTENTS
 
 #: توجيه مباشر: نية ← عقدة (الخارج عنها ← answer مع تحذير).
 _DIRECT_ROUTES: dict[str, RouteTarget] = {

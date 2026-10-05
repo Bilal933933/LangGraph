@@ -1,71 +1,14 @@
 """المسارات (Routes = نقاط استقبال HTTP بدون منطق)."""
 
-from functools import lru_cache
-
 from fastapi import APIRouter
 
 from app.api.schemas import ChatRequest, ChatResponse
 from app.core.config import get_settings
-from app.graph.builder import build_graph, create_model, create_structured
-from app.graph.checkpoints import (
-    create_checkpointer,
-    postgres_checkpointer_cm,
-)
-from app.repositories.pg_knowledge import PgKnowledgeRepository
-from app.repositories.sql_teacher import SqlTeacherDirectory, SqlTeacherProfile
-from app.services.chat_service import ChatService
+from app.runtime.factory import close_checkpointer as close_checkpointer
+from app.runtime.factory import get_chat_service as get_chat_service
+from app.runtime.factory import resolve_checkpointer as resolve_checkpointer
 
 router = APIRouter(tags=["chat"])
-
-#: سياق PostgresSaver الحي (اتصال واحد لعمر العملية). يُغلق عند الإيقاف.
-_POSTGRES_STACK: list[object] = []
-_POSTGRES_INSTANCE: list[object] = []
-
-
-def resolve_checkpointer() -> object:
-    """بلا DATABASE_URL ← ذاكرة مؤقتة. معه ← PostgresSaver دائم."""
-    from contextlib import ExitStack
-
-    database_url = get_settings().database_url.get_secret_value().strip()
-    if not database_url:
-        return create_checkpointer()
-    if _POSTGRES_INSTANCE:
-        return _POSTGRES_INSTANCE[0]
-    stack = ExitStack()
-    instance = stack.enter_context(postgres_checkpointer_cm(database_url))
-    _POSTGRES_STACK.append(stack)
-    _POSTGRES_INSTANCE.append(instance)
-    return instance
-
-
-def close_checkpointer() -> None:
-    """يغلق اتصال PostgresSaver عند إيقاف التطبيق."""
-    while _POSTGRES_STACK:
-        stack = _POSTGRES_STACK.pop()
-        stack.close()  # type: ignore[attr-defined]
-    _POSTGRES_INSTANCE.clear()
-
-
-@lru_cache(maxsize=1)
-def get_chat_service() -> ChatService:
-    """يبني الرسم مرة واحدة ويعيد استخدامه (توفير التكلفة)."""
-    settings = get_settings()
-    model = create_model(settings)
-    structured = create_structured(settings)
-    tools = []
-    database_url = settings.database_url.get_secret_value().strip()
-    directory = SqlTeacherDirectory(database_url) if database_url else None
-    graph = build_graph(
-        model,
-        structured,
-        tools,
-        checkpointer=resolve_checkpointer(),
-        teacher_directory=directory,
-        profile_writer=directory,
-        profile_store=SqlTeacherProfile(database_url) if database_url else None,
-        knowledge=PgKnowledgeRepository(database_url) if database_url else None,
-    )
-    return ChatService(graph)
 
 
 @router.get("/health")

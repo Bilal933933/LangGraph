@@ -1,28 +1,28 @@
-# تصميم اللقطات (Checkpointer Design) — تصميم أولي
+# تصميم اللقطات (Checkpointer Design) — منفذ حاليًا
 
-> لا تنفيذ بعد. يطبق في مرحلة الذاكرة والموافقة (المرحلة 5).
+## القرارات (الحالية في `app/graph/checkpoints.py` + `app/main.py`)
 
-## القرارات
+- **الإنتاج**: `PostgresSaver` على نفس قاعدة بيانات العمل عبر `postgres_checkpointer_cm()` + `setup_postgres_tables()`.
+- **التطوير**: `InMemorySaver` عبر `create_checkpointer()` بتخزين `lru_cache` عند غياب `DATABASE_URL` — تُفقد عند إعادة التشغيل.
+- **الاختيار**: `resolve_checkpointer()` في `app/api/routes.py` — فارغ = ذاكرة، غير فارغ = Postgres حي واحد لعمر العملية، يُغلق بـ `close_checkpointer()`.
+- **الخيط**: `thread_id = f"t{user_id}:c{conversation_id}"` عبر `ChatService.thread_id_for_conversation` — يعزل محادثة عن أخرى.
+- **التوقيت**: لقطة بعد كل عقدة (بعد دمج المخفضات)، والقراءة عند `invoke` بنفس `thread_id`.
+- **الحماية**: `recursion_limit = MAX_STEPS = 12` ضد الحلقات اللانهائية.
+- **الفصل**: جداول التطبيق (`Teacher/Conversation/Message`) ننشئها عبر SQLAlchemy، وجداول اللقطات (`checkpoints/checkpoint_writes/checkpoint_blobs`) ينشئها `PostgresSaver.setup()` ولا نلمسها يدويًا.
 
-- **المحرك للإنتاج**: `AsyncPostgresSaver` على نفس قاعدة بيانات العمل.
-- **التطوير**: `MemorySaver` (أو ملف) عند غياب `postgres_dsn` — بلا إعداد.
-- **نسخة واحدة مشتركة**: مصنع بتخزين مؤقت (`lru_cache`) يمرر لـ `compile(checkpointer=...)`.
-- **الخيط**: `thread_id` لكل محادثة (معلم + جلسة) يرافق كل `invoke`.
-- **التوقيت**: لقطة بعد كل عقدة (بعد دمج المخفضات)، والقراءة مرة عند الاستئناف.
-- **الحماية**: `recursion_limit` ضد الحلقات اللانهائية + تنظيف دوري للخيوط القديمة.
+## الربط الحالي
 
-## الربط المقترح
+| الملف | الدور |
+|-------|-------|
+| `app/graph/checkpoints.py` | `create_checkpointer()` + `postgres_checkpointer_cm()` + `setup_postgres_tables()` + `normalize_postgres_url()` |
+| `app/graph/builder.py` | `build_graph(..., checkpointer)` ← `compile(checkpointer=...)`، فارغ = بلا حفظ |
+| `app/api/routes.py` | `resolve_checkpointer()` + `close_checkpointer()` + `get_chat_service()` |
+| `app/api/conversations.py` | `get_conversation_graph()` بنفس المحلل (تكرار يُوحّد لاحقًا) |
+| `app/main.py` | `lifespan`: `create_tables()` + `setup_postgres_tables()` عند البدء، إغلاق نظيف عند الإيقاف |
+| `app/services/chat_service.py` | `handle_message(message, thread_id, teacher_id)` للاستئناف |
+| `app/services/conversation_service.py` | `send_message_detail()` يبني `thread` من المالك ثم `invoke` |
 
-| الملف | التعديل |
-|-------|---------|
-| `app/core/config.py` | إضافة `postgres_dsn` (فارغ = وضع التطوير) |
-| `app/graph/checkpoints.py` | جديد: `create_checkpointer(settings)` يختار حسب البيئة |
-| `app/graph/builder.py` | `compile(checkpointer=...)` بدل التجميع الحالي |
-| `app/main.py` | تهيئة جداول اللقطات وإغلاق الاتصال في `lifespan` |
-| `app/services/chat_service.py` | `handle_message(message, thread_id)` للاستئناف |
+## الشروط المحققة
 
-## الشروط المسبقة (محققة)
-
-- حقول `ChatState` الأربعة قابلة لـ JSON — انظر `docs/state-design.md`.
-- لا تغيير على العقد والحواف؛ اللقطات طبقة ربط فقط.
-- `Interrupt` للموافقة البشرية يأتي مع نفس المرحلة لأنه يتطلب الحافظ.
+- كل حقول `ChatState` قابلة لـ JSON — انظر `docs/state-design.md`.
+- `Interrupt` للموافقة البشرية مؤجل — البنية جاهزة له لأنه يتطلب نفس الحافظ.

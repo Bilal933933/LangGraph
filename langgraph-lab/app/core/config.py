@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     log_dir: str = "logs"
     plan_retrieval_limit: int = 20
     answer_retrieval_limit: int = 6
+    tavily_api_key: SecretStr = SecretStr("")
+    web_search_limit: int = 5
+    web_timeout_seconds: float = 10.0
 
 
 @lru_cache(maxsize=1)

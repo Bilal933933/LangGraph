@@ -106,7 +106,8 @@ def make_plan_extract_node(
             missing.append("grade_level")
         if not req.minutes:
             missing.append("minutes")
-        return {"lesson_request": req, "missing_fields": missing}
+        # بداية طلب جديد ← صفّر أقسام الخطة السابقة (المخفض يهمل القديم عند []).
+        return {"lesson_request": req, "missing_fields": missing, "plan_sections": []}
 
     return _extract
 
@@ -316,6 +317,6 @@ def make_plan_merge_node(
         )
         text = render_lesson_plan(plan, block)
         text = f"{text}\n\n---\nلإنشاء اختبار لهذا الدرس أرسل: أنشئ اختبارا لهذا الدرس (5 أسئلة افتراضا)."
-        return {"plan_draft": plan, "messages": [AIMessage(content=text)]}
+        return {"plan_draft": plan, "messages": [AIMessage(content=text)], "section_task": None}
 
     return _merge

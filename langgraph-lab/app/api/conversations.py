@@ -1,6 +1,5 @@
 """مسارات محادثات المسجل (HTTP فقط، المنطق في conversation_service)."""
 
-from functools import lru_cache
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
@@ -22,31 +21,11 @@ from app.services import conversation_service as service
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
-@lru_cache(maxsize=1)
 def get_conversation_graph() -> Any:
-    """رسم المحادثات: يُبنى مرة واحدة (يُستبدل في الاختبارات)."""
-    from app.api.routes import resolve_checkpointer
-    from app.core.config import get_settings
-    from app.graph.builder import build_graph, create_model, create_structured
-    from app.repositories.pg_knowledge import PgKnowledgeRepository
-    from app.repositories.sql_teacher import SqlTeacherDirectory, SqlTeacherProfile
+    """رسم المحادثات: مفوض للمصنع الوحيد (يُستبدل في الاختبارات)."""
+    from app.runtime.factory import get_shared_graph
 
-    settings = get_settings()
-    model = create_model(settings)
-    structured = create_structured(settings)
-    tools = []
-    database_url = settings.database_url.get_secret_value().strip()
-    directory = SqlTeacherDirectory(database_url) if database_url else None
-    return build_graph(
-        model,
-        structured,
-        tools,
-        checkpointer=resolve_checkpointer(),
-        teacher_directory=directory,
-        profile_writer=directory,
-        profile_store=SqlTeacherProfile(database_url) if database_url else None,
-        knowledge=PgKnowledgeRepository(database_url) if database_url else None,
-    )
+    return get_shared_graph()
 
 
 def _to_out(conv: Conversation) -> ConversationOut:

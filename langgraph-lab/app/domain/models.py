@@ -8,6 +8,30 @@ Intent = Literal[
     "greeting", "general_question", "generate_quiz", "plan_lesson", "unsupported", "update_profile"
 ]
 
+#: كل النيات المعتمدة (مرجع واحد يمنع تشتت الأسماء).
+INTENT_VALUES: tuple[str, ...] = (
+    "greeting",
+    "general_question",
+    "generate_quiz",
+    "plan_lesson",
+    "unsupported",
+    "update_profile",
+)
+
+#: المسار الافتراضي عند فشل التصنيف.
+DEFAULT_INTENT: Intent = "general_question"
+
+#: نيات غامضة لا تقطع استكمال طلب ناقص (تُستخدم في router).
+AMBIGUOUS_INTENTS: tuple[str, ...] = ("general_question", "unsupported", "greeting")
+
+
+class TeacherContext(BaseModel):
+    """سياق المعلم المحمّل حتميًا (DB ← Repository ← Node)."""
+
+    name: str = ""
+    subject: str = ""
+    grades: list[str] = Field(default_factory=list)
+
 
 class IntentResult(BaseModel):
     """نتيجة التصنيف المهيكلة من النموذج."""
