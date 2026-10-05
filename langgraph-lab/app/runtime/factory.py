@@ -58,6 +58,26 @@ def build_default_tools(lesson_repo: Any | None = None) -> list[BaseTool]:
     return [make_fetch_lesson_tool(lesson_repo)]
 
 
+def build_knowledge_tools(knowledge: Any | None) -> list[BaseTool]:
+    """أدوات الوكيل المعرفية: بحث ← قراءة. بلا معرفة ← [] (السلوك محفوظ)."""
+    if knowledge is None:
+        return []
+    from app.graph.tools import make_fetch_source_tool, make_search_knowledge_tool
+
+    return [make_search_knowledge_tool(knowledge), make_fetch_source_tool(knowledge)]
+
+
+def build_local_file_tools(repo: Any | None = None) -> list[BaseTool]:
+    """أدوات ملفات data/ المحلية: سرد ← قراءة. تعمل دائمًا بلا DB."""
+    from app.graph.tools import make_list_files_tool, make_read_file_tool
+
+    if repo is None:
+        from app.repositories.local_files import LocalFilesRepository
+
+        repo = LocalFilesRepository()
+    return [make_list_files_tool(repo), make_read_file_tool(repo)]
+
+
 class KnowledgeLessonAdapter:
     """محول LessonRepository فوق المعرفة: أول مقطع ← نص الدرس أو None."""
 
@@ -83,8 +103,8 @@ def create_app_graph(settings: Settings, checkpointer: Any) -> Any:
     """يبني Graph التطبيق: model + structured + tools + مخازن من مكان واحد.
 
     الإنتاج (DATABASE_URL موجود): knowledge حقيقية ← أداة fetch_lesson مربوطة.
-    التطوير/الاختبارات: بلا DB ← tools=[] والسلوك محفوظ.
-    الحلقة محدودة بـ recursion_limit=12 في ChatService.
+    التطوير/الاختبارات: بلا DB ← أداتا ملفات data/ فقط (list_files/read_file).
+    الحلقة quiz_agent ⇄ quiz_tools محدودة بـ recursion_limit=12 في ChatService.
     """
     model = create_model(settings)
     structured = create_structured(settings)
@@ -92,10 +112,15 @@ def create_app_graph(settings: Settings, checkpointer: Any) -> Any:
     directory = SqlTeacherDirectory(database_url) if database_url else None
     knowledge = PgKnowledgeRepository(database_url) if database_url else None
     lesson_repo = KnowledgeLessonAdapter(knowledge) if knowledge is not None else None
+    tools = (
+        build_default_tools(lesson_repo)
+        + build_knowledge_tools(knowledge)
+        + build_local_file_tools()
+    )
     graph = build_graph(
         model,
         structured,
-        build_default_tools(lesson_repo),
+        tools,
         checkpointer=checkpointer,
         teacher_directory=directory,
         profile_writer=directory,
