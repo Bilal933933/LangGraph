@@ -11,6 +11,7 @@ from app.db.models.conversation import Conversation
 from app.db.models.message import Message
 from app.db.models.teacher import Teacher
 from app.graph.content import message_text
+from app.graph.nodes.plan import build_plan_clarification
 from app.services.chat_service import ChatService
 
 #: طول عنوان المحادثة التلقائي من أول رسالة.
@@ -76,6 +77,15 @@ def delete_conversation(session: Session, user: User, conversation_id: int) -> N
 
 def send_message(session: Session, graph: Any, user: User, conversation_id: int, text: str) -> str:
     """ملكية ← حفظ user ← invoke عبر thread المالك ← حفظ assistant ← تحديث العنوان."""
+    reply = send_message_detail(session, graph, user, conversation_id, text)["reply"]
+    assert isinstance(reply, str)
+    return reply
+
+
+def send_message_detail(
+    session: Session, graph: Any, user: User, conversation_id: int, text: str
+) -> dict[str, object]:
+    """مثل send_message مع {reply, sources, clarification} للديلوج عند النواقص."""
     cleaned = text.strip()
     conv = _owned_conversation(session, user, conversation_id)
     session.add(Message(conversation_id=conv.id, role="user", content=cleaned))
@@ -89,9 +99,17 @@ def send_message(session: Session, graph: Any, user: User, conversation_id: int,
         {"configurable": {"thread_id": thread}, "recursion_limit": ChatService.MAX_STEPS},
     )
     reply = message_text(result["messages"][-1].content)
+    sources = result.get("retrieved_sources", [])
+    if not isinstance(sources, list):
+        sources = []
+    clarification = build_plan_clarification(result)
 
     session.add(Message(conversation_id=conv.id, role="assistant", content=reply))
     if not conv.title:
         conv.title = cleaned[:TITLE_LEN]
     session.flush()
-    return reply
+    return {
+        "reply": reply,
+        "sources": sources,
+        "clarification": clarification.model_dump() if clarification is not None else None,
+    }

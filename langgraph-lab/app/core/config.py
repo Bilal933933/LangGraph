@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr = SecretStr("dev-only-secret-change-me-32-chars!")
     jwt_access_minutes: int = 15
     jwt_refresh_days: int = 30
+    log_level: str = "INFO"
+    log_dir: str = "logs"
+    plan_retrieval_limit: int = 20
+    answer_retrieval_limit: int = 6
 
 
 @lru_cache(maxsize=1)

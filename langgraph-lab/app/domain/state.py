@@ -6,7 +6,19 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from app.domain.models import Intent, QuizRequest
+from app.domain.models import Intent, LessonPlan, LessonRequest, QuizRequest
+
+
+def _append_sections(
+    left: list[dict[str, object]], right: list[dict[str, object]] | dict[str, object]
+) -> list[dict[str, object]]:
+    """مخفض التجميع للعمال المتوازيين: قوائم ← دمج بلا فقد."""
+    if isinstance(right, dict):
+        return [*left, right]
+    return [*left, *right]
+
+
+PLAN_SECTION_KINDS: tuple[str, ...] = ("objectives", "intro", "steps", "activities", "assessment")
 
 
 class ChatState(TypedDict):
@@ -30,3 +42,8 @@ class ChatState(TypedDict):
     pending_profile_name: NotRequired[str | None]
     profile_snapshot: NotRequired[dict[str, object]]
     pending_profile: NotRequired[dict[str, object] | None]
+    retrieved_sources: NotRequired[list[dict[str, object]]]
+    lesson_request: NotRequired[LessonRequest]
+    section_task: NotRequired[str | None]
+    plan_sections: NotRequired[Annotated[list[dict[str, object]], _append_sections]]
+    plan_draft: NotRequired[LessonPlan]

@@ -1,7 +1,6 @@
 """المسارات (Routes = نقاط استقبال HTTP بدون منطق)."""
 
 from functools import lru_cache
-from pathlib import Path
 
 from fastapi import APIRouter
 
@@ -12,14 +11,11 @@ from app.graph.checkpoints import (
     create_checkpointer,
     postgres_checkpointer_cm,
 )
-from app.graph.tools import make_fetch_lesson_tool
-from app.repositories.json_lesson import JsonLessonRepository
+from app.repositories.pg_knowledge import PgKnowledgeRepository
 from app.repositories.sql_teacher import SqlTeacherDirectory, SqlTeacherProfile
 from app.services.chat_service import ChatService
 
 router = APIRouter(tags=["chat"])
-
-LESSONS_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "lessons.json"
 
 #: سياق PostgresSaver الحي (اتصال واحد لعمر العملية). يُغلق عند الإيقاف.
 _POSTGRES_STACK: list[object] = []
@@ -56,7 +52,7 @@ def get_chat_service() -> ChatService:
     settings = get_settings()
     model = create_model(settings)
     structured = create_structured(settings)
-    tools = [make_fetch_lesson_tool(JsonLessonRepository(LESSONS_FILE))]
+    tools = []
     database_url = settings.database_url.get_secret_value().strip()
     directory = SqlTeacherDirectory(database_url) if database_url else None
     graph = build_graph(
@@ -67,6 +63,7 @@ def get_chat_service() -> ChatService:
         teacher_directory=directory,
         profile_writer=directory,
         profile_store=SqlTeacherProfile(database_url) if database_url else None,
+        knowledge=PgKnowledgeRepository(database_url) if database_url else None,
     )
     return ChatService(graph)
 
@@ -95,7 +92,23 @@ def health_db() -> dict[str, str]:
 
 @router.post("/chat", response_model=ChatResponse)
 def post_chat(payload: ChatRequest) -> ChatResponse:
-    """يستقبل رسالة ← يعيد رد Gemini عبر الرسم."""
+    """يستقبل رسالة ← يعيد رد Gemini عبر الرسم مع مصادره واستيضاح الديلوج."""
+    from app.api.schemas import ClarificationOut, SourceOut
+
     service = get_chat_service()
-    reply = service.handle_message(payload.message, thread_id=payload.thread_id)
-    return ChatResponse(reply=reply)
+    detail = service.handle_message_detail(payload.message, thread_id=payload.thread_id)
+    reply = detail["reply"]
+    assert isinstance(reply, str)
+    sources = detail["sources"]
+    assert isinstance(sources, list)
+    raw_clarification = detail.get("clarification")
+    clarification = (
+        ClarificationOut(**raw_clarification)
+        if isinstance(raw_clarification, dict)
+        else None
+    )
+    return ChatResponse(
+        reply=reply,
+        sources=[SourceOut(**s) if isinstance(s, dict) else SourceOut() for s in sources],
+        clarification=clarification,
+    )

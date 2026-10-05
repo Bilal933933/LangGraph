@@ -13,19 +13,25 @@ from app.api.routes import close_checkpointer, router
 from app.auth.router import router as auth_router
 from app.core.config import get_settings
 from app.core.errors.handlers import register_error_handlers
+from app.core.trace import setup_logging
 from app.db.engine import check_connection, create_tables, dispose_engine, get_engine
+from app.db.knowledge_indexes import ensure_knowledge_indexes, ensure_vector_extensions
 from app.graph.checkpoints import setup_postgres_tables
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """بدء ← جداول التطبيق + جداول لقطات LangGraph، إيقاف ← إغلاق نظيف."""
-    database_url = get_settings().database_url.get_secret_value().strip()
+    settings = get_settings()
+    setup_logging(log_dir=settings.log_dir, level=settings.log_level)
+    database_url = settings.database_url.get_secret_value().strip()
     engine: Engine | None = None
     if database_url:
         engine = get_engine(database_url)
         check_connection(engine)
+        ensure_vector_extensions(engine)
         create_tables(engine)
+        ensure_knowledge_indexes(engine)
         setup_postgres_tables(database_url)
         app.state.db_engine = engine
     yield

@@ -1,7 +1,6 @@
 """مسارات محادثات المسجل (HTTP فقط، المنطق في conversation_service)."""
 
 from functools import lru_cache
-from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
@@ -22,8 +21,6 @@ from app.services import conversation_service as service
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
-LESSONS_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "lessons.json"
-
 
 @lru_cache(maxsize=1)
 def get_conversation_graph() -> Any:
@@ -31,14 +28,13 @@ def get_conversation_graph() -> Any:
     from app.api.routes import resolve_checkpointer
     from app.core.config import get_settings
     from app.graph.builder import build_graph, create_model, create_structured
-    from app.graph.tools import make_fetch_lesson_tool
-    from app.repositories.json_lesson import JsonLessonRepository
+    from app.repositories.pg_knowledge import PgKnowledgeRepository
     from app.repositories.sql_teacher import SqlTeacherDirectory, SqlTeacherProfile
 
     settings = get_settings()
     model = create_model(settings)
     structured = create_structured(settings)
-    tools = [make_fetch_lesson_tool(JsonLessonRepository(LESSONS_FILE))]
+    tools = []
     database_url = settings.database_url.get_secret_value().strip()
     directory = SqlTeacherDirectory(database_url) if database_url else None
     return build_graph(
@@ -49,6 +45,7 @@ def get_conversation_graph() -> Any:
         teacher_directory=directory,
         profile_writer=directory,
         profile_store=SqlTeacherProfile(database_url) if database_url else None,
+        knowledge=PgKnowledgeRepository(database_url) if database_url else None,
     )
 
 
@@ -119,6 +116,22 @@ def post_message(
     session: Annotated[Session, Depends(get_db)],
     graph: Annotated[Any, Depends(get_conversation_graph)],
 ) -> SendMessageOut:
-    """يرسل رسالة ضمن محادثتي: ملكية ← حفظ ← رسم ← حفظ الرد."""
-    reply = service.send_message(session, graph, user, conversation_id, payload.message)
-    return SendMessageOut(reply=reply)
+    """يرسل رسالة ضمن محادثتي: ملكية ← حفظ ← رسم ← حفظ الرد مع مصادره."""
+    from app.api.schemas import ClarificationOut, SourceOut
+
+    detail = service.send_message_detail(session, graph, user, conversation_id, payload.message)
+    reply = detail["reply"]
+    assert isinstance(reply, str)
+    sources = detail["sources"]
+    assert isinstance(sources, list)
+    raw_clarification = detail.get("clarification")
+    clarification = (
+        ClarificationOut(**raw_clarification)
+        if isinstance(raw_clarification, dict)
+        else None
+    )
+    return SendMessageOut(
+        reply=reply,
+        sources=[SourceOut(**s) if isinstance(s, dict) else SourceOut() for s in sources],
+        clarification=clarification,
+    )

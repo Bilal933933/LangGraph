@@ -1,0 +1,79 @@
+"""اختبارات التحضير: كشف التهرب وبوابة الدمج (وهمي بلا Gemini)."""
+
+from typing import cast
+
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.tools import BaseTool
+
+from app.domain.models import LessonPlan, LessonRequest
+from app.domain.ports import ChatModelPort
+from app.graph.nodes.plan import is_evasive, make_plan_merge_node
+
+_EVASIVE = "يبدو أنك نسيت تحديد الموضوع! زودني بالموضوع وسأبدأ فوراً في انتظارك."
+
+_GOOD = (
+    "أهداف الدرس: أن يعرّف الطالب الفاعل تعريفاً صحيحاً، وأن يميز الفاعل "
+    "في الجملة الفعلية تمييزاً دقيقاً، وأن يعرب الفاعل إعراباً صحيحاً "
+    "في تدريبات متنوعة من الكتاب المدرسي."
+)
+
+
+class FixedModel:
+    """نموذج إصلاح وهمي: يرد قسماً سليماً دائماً."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+        _ = messages
+        self.calls += 1
+        return AIMessage(content=_GOOD)
+
+    def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
+        _ = tools
+        return cast("ChatModelPort", self)
+
+
+def test_is_evasive_flags_placeholders() -> None:
+    assert is_evasive(_EVASIVE) is True
+    assert is_evasive("x") is True
+    assert is_evasive(_GOOD) is False
+    assert is_evasive(_GOOD, topic="المفعول المطلق") is True
+    assert is_evasive(_GOOD, topic="الفاعل") is False
+
+
+def test_merge_repairs_evasive_sections_once() -> None:
+    model = FixedModel()
+    merge = make_plan_merge_node(model)
+    state = {
+        "messages": [],
+        "lesson_request": LessonRequest(topic="الفاعل", grade_level="الثالث", minutes=45),
+        "retrieved_sources": [],
+        "plan_sections": [
+            {"kind": "objectives", "title": "objectives", "body": _EVASIVE},
+            {"kind": "intro", "title": "intro", "body": _GOOD},
+            {"kind": "steps", "title": "steps", "body": _GOOD},
+            {"kind": "activities", "title": "activities", "body": _GOOD},
+            {"kind": "assessment", "title": "assessment", "body": _GOOD},
+        ],
+    }
+    result = merge(state)  # type: ignore[arg-type]
+    plan = cast("LessonPlan", result["plan_draft"])
+    assert plan.topic == "الفاعل"
+    assert "يعرّف الطالب الفاعل" in plan.objectives
+    assert model.calls == 1
+
+
+def test_merge_without_model_keeps_sections() -> None:
+    merge = make_plan_merge_node(None)
+    state = {
+        "messages": [],
+        "lesson_request": LessonRequest(topic="الفاعل", grade_level="الثالث", minutes=45),
+        "retrieved_sources": [],
+        "plan_sections": [
+            {"kind": k, "title": k, "body": _GOOD} for k in
+            ("objectives", "intro", "steps", "activities", "assessment")
+        ],
+    }
+    result = merge(state)  # type: ignore[arg-type]
+    assert cast("LessonPlan", result["plan_draft"]).minutes == 45

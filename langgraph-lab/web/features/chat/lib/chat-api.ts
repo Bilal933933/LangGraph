@@ -1,19 +1,14 @@
-import { useAuthStore } from "@/features/auth/store/auth-store";
-import type { ConversationDetail, ConversationItem } from "../types";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
-
-function authHeaders(): Record<string, string> {
-  const token = useAuthStore.getState().accessToken;
-  if (!token) throw new Error("يلزم تسجيل الدخول.");
-  return { Authorization: `Bearer ${token}` };
-}
+import { authedFetch } from "@/features/auth/lib/authed-fetch";
+import type {
+  ChatSource,
+  Clarification,
+  ConversationDetail,
+  ConversationItem,
+  SendMessageResult,
+} from "../types";
 
 export async function listConversations(): Promise<ConversationItem[]> {
-  const response = await fetch(`${API_BASE}/conversations`, {
-    headers: authHeaders(),
-  });
+  const response = await authedFetch(`/conversations`);
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(extractErrorMessage(data, response.status));
   return data as ConversationItem[];
@@ -22,9 +17,9 @@ export async function listConversations(): Promise<ConversationItem[]> {
 export async function createConversation(
   title = "",
 ): Promise<ConversationItem> {
-  const response = await fetch(`${API_BASE}/conversations`, {
+  const response = await authedFetch(`/conversations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title }),
   });
   const data: unknown = await response.json().catch(() => null);
@@ -35,18 +30,15 @@ export async function createConversation(
 export async function getConversation(
   id: number,
 ): Promise<ConversationDetail> {
-  const response = await fetch(`${API_BASE}/conversations/${id}`, {
-    headers: authHeaders(),
-  });
+  const response = await authedFetch(`/conversations/${id}`);
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(extractErrorMessage(data, response.status));
   return data as ConversationDetail;
 }
 
 export async function deleteConversation(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/conversations/${id}`, {
+  const response = await authedFetch(`/conversations/${id}`, {
     method: "DELETE",
-    headers: authHeaders(),
   });
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => null);
@@ -57,16 +49,56 @@ export async function deleteConversation(id: number): Promise<void> {
 export async function postConversationMessage(
   id: number,
   message: string,
-): Promise<string> {
-  const response = await fetch(`${API_BASE}/conversations/${id}/messages`, {
+): Promise<SendMessageResult> {
+  const response = await authedFetch(`/conversations/${id}/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
   });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(extractErrorMessage(data, response.status));
   if (!isMessageReply(data)) throw new Error("رد غير صالح من السيرفر.");
-  return data.reply;
+  const reply = data as { reply: string; clarification?: unknown };
+  return { reply: reply.reply, sources: extractSources(data), clarification: extractClarification(reply) };
+}
+
+function extractClarification(data: { clarification?: unknown }): Clarification | null {
+  if (typeof data.clarification !== "object" || data.clarification === null) return null;
+  const item = data.clarification as Record<string, unknown>;
+  if (!Array.isArray(item.missing)) return null;
+  const missing = item.missing.filter((f): f is string => typeof f === "string");
+  if (missing.length === 0) return null;
+  const suggestions: Record<string, string[]> =
+    typeof item.suggestions === "object" && item.suggestions !== null
+      ? Object.fromEntries(
+          Object.entries(item.suggestions as Record<string, unknown>).map(([key, value]) => [
+            key,
+            Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [],
+          ]),
+        )
+      : {};
+  return {
+    kind: typeof item.kind === "string" ? item.kind : "plan",
+    missing,
+    suggestions,
+    profile_empty: item.profile_empty === true,
+  };
+}
+
+function extractSources(data: { reply: string; sources?: unknown }): ChatSource[] {
+  if (!Array.isArray(data.sources)) return [];
+  return data.sources
+    .filter(
+      (item): item is Record<string, unknown> =>
+        typeof item === "object" && item !== null,
+    )
+    .map((item) => ({
+      title: typeof item.title === "string" ? item.title : "",
+      subject: typeof item.subject === "string" ? item.subject : "",
+      lesson: typeof item.lesson === "string" ? item.lesson : "",
+      text: typeof item.text === "string" ? item.text : "",
+    }))
+    .filter((source) => source.title || source.lesson || source.text);
 }
 
 function isMessageReply(data: unknown): data is { reply: string } {

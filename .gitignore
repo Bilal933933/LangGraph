@@ -25,3 +25,6 @@ dist/
 langgraph-lab/data/references/
 langgraph-lab/data/textbook/
 grammar-tutor/
+# Local trace logs (per-machine, may contain prompt text)
+logs/
+*.log

@@ -12,10 +12,30 @@ class ChatRequest(BaseModel):
     thread_id: str = Field(default="default", min_length=1, max_length=64)
 
 
+class ClarificationOut(BaseModel):
+    """حقل الاستيضاح المهيكل للديلوج (بجانب reply النصي)."""
+
+    kind: str = "plan"
+    missing: list[str] = Field(default_factory=list)
+    suggestions: dict[str, list[str]] = Field(default_factory=dict)
+    profile_empty: bool = False
+
+
 class ChatResponse(BaseModel):
     """رد POST /chat."""
 
     reply: str
+    sources: list["SourceOut"] = Field(default_factory=list)
+    clarification: ClarificationOut | None = None
+
+
+class SourceOut(BaseModel):
+    """مصدر واحد أُرسل للنموذج (شفافية الإنتاج)."""
+
+    title: str = ""
+    subject: str = ""
+    lesson: str = ""
+    text: str = ""
 
 
 class ConversationCreate(BaseModel):
@@ -61,3 +81,5 @@ class SendMessageOut(BaseModel):
     """رد الإرسال: رد المساعد فقط (السجل يُجلب من GET)."""
 
     reply: str
+    sources: list[SourceOut] = Field(default_factory=list)
+    clarification: ClarificationOut | None = None

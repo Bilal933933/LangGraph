@@ -22,11 +22,12 @@ export function useSendMessage(pageConversationId: number | null) {
         queryClient.invalidateQueries({ queryKey: conversationsKey });
       }
       useChatStore.getState().setLastSent({ conversationId: targetId, text });
-      const reply = await postConversationMessage(targetId, text);
-      return { conversationId: targetId, reply };
+      const result = await postConversationMessage(targetId, text);
+      return { conversationId: targetId, ...result };
     },
-    onSuccess: ({ conversationId: targetId }) => {
+    onSuccess: ({ conversationId: targetId, clarification }) => {
       useChatStore.getState().setLastSent(null);
+      useChatStore.getState().setClarification(clarification);
       queryClient.invalidateQueries({
         queryKey: conversationKey(targetId),
       });

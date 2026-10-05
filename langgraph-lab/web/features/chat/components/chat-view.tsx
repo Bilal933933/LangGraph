@@ -12,6 +12,7 @@ import {
 } from "../hooks/use-conversations";
 import type { ChatMessage } from "../types";
 import { AppSidebar } from "./app-sidebar";
+import { ClarificationDialog } from "./clarification-dialog";
 import { GreetingHero } from "./greeting-hero";
 import { MessageComposer } from "./message-composer";
 import { MessageList } from "./message-list";
@@ -113,6 +114,7 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
           sending={sending}
           maxLength={MAX_LENGTH}
         />
+        <ClarificationDialog onSubmit={submit} />
       </div>
     </div>
   );

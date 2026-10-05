@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.core.errors import AppError, ErrorCode
 from app.domain.ports import (
     ChatModelPort,
+    KnowledgeSearchPort,
     StructuredOutputPort,
     TeacherDirectoryPort,
     TeacherProfilePort,
@@ -17,7 +18,7 @@ from app.domain.ports import (
 )
 from app.domain.state import ChatState
 from app.graph.adapters import GeminiChatModel, GeminiStructuredModel
-from app.graph.edges.registry import core_conditional_routes, core_static_edges
+from app.graph.edges.registry import core_conditional_routes, core_send_routes, core_static_edges
 from app.graph.nodes.registry import core_nodes
 
 
@@ -50,6 +51,7 @@ def build_graph(
     teacher_directory: TeacherDirectoryPort | None = None,
     profile_writer: TeacherProfileWriterPort | None = None,
     profile_store: TeacherProfilePort | None = None,
+    knowledge: KnowledgeSearchPort | None = None,
 ) -> Any:
     """START ← [load_profile → extract_profile_info → apply_profile → classify] ← شرطي → ....
 
@@ -70,7 +72,8 @@ def build_graph(
     bound_quiz = model.bind_tools(quiz_tools)
     graph: StateGraph[ChatState] = StateGraph(ChatState)
     nodes = core_nodes(
-        model, structured, bound_quiz, teacher_directory, profile_writer, profile_store
+        model, structured, bound_quiz, teacher_directory, profile_writer, profile_store,
+        knowledge,
     )
     for name, node in nodes.items():
         graph.add_node(name, node)
@@ -78,6 +81,8 @@ def build_graph(
     for route in core_conditional_routes():
         targets = {k: (END if v == "end" else v) for k, v in route.targets.items()}
         graph.add_conditional_edges(route.source, route.router, targets)  # type: ignore[arg-type]
+    for send_route in core_send_routes():
+        graph.add_conditional_edges(send_route.source, send_route.router)
     for edge in core_static_edges():
         source = START if edge.source == "__start__" else edge.source
         target = END if edge.target == "__end__" else edge.target

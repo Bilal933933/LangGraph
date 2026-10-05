@@ -1,4 +1,4 @@
-"""الاتصال بقاعدة البيانات وإنشاء جداول العمل."""
+"""الاتصال بقاعدة البيانات وإنشاء جداول العمل (اتصال فقط، بلا فهرسة)."""
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -13,7 +13,10 @@ def get_engine(database_url: str) -> Engine:
 
 
 def create_tables(engine: Engine) -> None:
-    """ينشئ جدولي العمل (quizzes وquestions) إن غابا."""
+    """ينشئ كل جداول العمل (تشمل knowledge_chunks) إن غابت. بلا إضافات/فهارس."""
+    import app.auth.models as _auth_models  # noqa: F401 - تسجيل users قبل create_all
+    import app.db.models as _models  # noqa: F401 - تسجيل knowledge_chunks
+
     Base.metadata.create_all(engine)
 
 

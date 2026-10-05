@@ -4,7 +4,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Intent = Literal["greeting", "general_question", "generate_quiz", "unsupported", "update_profile"]
+Intent = Literal[
+    "greeting", "general_question", "generate_quiz", "plan_lesson", "unsupported", "update_profile"
+]
 
 
 class IntentResult(BaseModel):
@@ -34,3 +36,41 @@ class ProfileInfo(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     subject: str | None = Field(default=None, min_length=1)
     grades: list[str] = Field(default_factory=list)
+
+
+class LessonRequest(BaseModel):
+    """معاملات طلب التحضير (الحقول فارغة = ناقصة)."""
+
+    topic: str | None = Field(default=None, min_length=1)
+    grade_level: str | None = Field(default=None, min_length=1)
+    minutes: int | None = Field(default=None, gt=0, le=180)
+
+
+class LessonSection(BaseModel):
+    """قسم واحد من خطة الدرس ينتجه عامل متخصص."""
+
+    kind: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+
+
+class LessonPlan(BaseModel):
+    """الخطة النهائية بعد الدمج والتحقق."""
+
+    topic: str = Field(min_length=1)
+    grade_level: str = Field(min_length=1)
+    minutes: int = Field(gt=0, le=180)
+    objectives: str = Field(default="")
+    intro: str = Field(default="")
+    steps: str = Field(default="")
+    activities: str = Field(default="")
+    assessment: str = Field(default="")
+
+
+class ClarificationOut(BaseModel):
+    """حقل الاستيضاح المهيكل للديلوج (بجانب reply النصي)."""
+
+    kind: Literal["plan"] = "plan"
+    missing: list[str] = Field(default_factory=list)
+    suggestions: dict[str, list[str]] = Field(default_factory=dict)
+    profile_empty: bool = False

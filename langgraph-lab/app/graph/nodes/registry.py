@@ -9,6 +9,7 @@ from typing import Any
 
 from app.domain.ports import (
     ChatModelPort,
+    KnowledgeSearchPort,
     StructuredOutputPort,
     TeacherDirectoryPort,
     TeacherProfilePort,
@@ -20,6 +21,13 @@ from app.graph.nodes.extract import (
     ask_clarification_node,
     confirm_ready_node,
     make_extract_node,
+)
+from app.graph.nodes.plan import (
+    make_plan_clarification_node,
+    make_plan_extract_node,
+    make_plan_merge_node,
+    make_plan_retrieve_node,
+    make_plan_section_node,
 )
 from app.graph.nodes.profile import (
     ask_profile_name_node,
@@ -39,6 +47,7 @@ def core_nodes(
     teacher_directory: TeacherDirectoryPort | None = None,
     profile_writer: TeacherProfileWriterPort | None = None,
     profile_store: TeacherProfilePort | None = None,
+    knowledge: KnowledgeSearchPort | None = None,
 ) -> dict[str, Callable[..., Any]]:
     """عقد النواة: الاسم ← دالة العقدة الجاهزة.
 
@@ -51,7 +60,7 @@ def core_nodes(
     nodes: dict[str, Callable[..., Any]] = {
         "classify": make_classify_node(structured),
         "greeting": make_greeting_node(teacher_directory),
-        "answer": make_answer_node(model),
+        "answer": make_answer_node(model, knowledge),
         "decline": make_decline_node(),
         "extract": make_extract_node(structured),
         "ask_clarification": ask_clarification_node,
@@ -63,5 +72,10 @@ def core_nodes(
         "load_profile": make_load_profile_node(profile_store),
         "extract_profile_info": make_extract_profile_info_node(structured),
         "apply_profile": make_apply_profile_node(profile_store),
+        "plan_extract": make_plan_extract_node(structured),
+        "plan_retrieve": make_plan_retrieve_node(knowledge),
+        "plan_section": make_plan_section_node(model),
+        "plan_ask": make_plan_clarification_node(),
+        "plan_merge": make_plan_merge_node(model),
     }
     return nodes

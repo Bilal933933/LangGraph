@@ -5,6 +5,27 @@ export type ChatMessage = {
   role: ChatRole;
   text: string;
   createdAt: number;
+  sources?: ChatSource[];
+};
+
+export type ChatSource = {
+  title: string;
+  subject: string;
+  lesson: string;
+  text: string;
+};
+
+export type SendMessageResult = {
+  reply: string;
+  sources: ChatSource[];
+  clarification: Clarification | null;
+};
+
+export type Clarification = {
+  kind: string;
+  missing: string[];
+  suggestions: Record<string, string[]>;
+  profile_empty: boolean;
 };
 
 export type ServerChatMessage = {

@@ -38,6 +38,18 @@ class LessonRepository(Protocol):
         ...
 
 
+class KnowledgeSearchPort(Protocol):
+    """عقد البحث المعرفي: سؤال ← مقاطع مرتبة (نصي، أو هجين عند توفر التضمين)."""
+
+    def search(self, query: str, limit: int = 5) -> list[dict[str, object]]:
+        """نص السؤال ← قائمة {title, text, subject, lesson} الأعلى صلة."""
+        ...
+
+    def search_hybrid(self, query: str, limit: int = 5) -> list[dict[str, object]]:
+        """نص السؤال ← مقاطع مدمجة دلالي+نصي (يسقط للنصي عند تعذر التضمين)."""
+        ...
+
+
 class TeacherDirectoryPort(Protocol):
     """عقد أسماء المعلمين: هوية ← اسم للتحية فقط (جلب كسول)."""
 

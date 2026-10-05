@@ -7,11 +7,15 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from langgraph.types import Send
+
 from app.domain.state import ChatState
 from app.graph.edges.extract import route_after_extract
 from app.graph.edges.intent import route_by_intent
 from app.graph.edges.loop import route_after_quiz_agent
+from app.graph.edges.plan import route_after_plan_extract
 from app.graph.edges.profile import route_after_profile_extract
+from app.graph.nodes.plan import plan_dispatch
 
 
 @dataclass(frozen=True)
@@ -31,6 +35,19 @@ class StaticEdge:
     target: str
 
 
+@dataclass(frozen=True)
+class SendRoute:
+    """موجه Send: المصدر + دالة التوزيع المتوازي."""
+
+    source: str
+    router: Callable[[ChatState], list[Send]]
+
+
+def core_send_routes() -> list[SendRoute]:
+    """موجهات Send (fan-out المتوازي)."""
+    return [SendRoute(source="plan_retrieve", router=plan_dispatch)]
+
+
 def core_conditional_routes() -> list[ConditionalRoute]:
     """موجهات النواة الحالية، مرتبة حسب التنفيذ."""
     return [
@@ -42,7 +59,16 @@ def core_conditional_routes() -> list[ConditionalRoute]:
                 "answer": "answer",
                 "decline": "decline",
                 "extract": "extract",
+                "plan_extract": "plan_extract",
                 "extract_profile": "extract_profile",
+            },
+        ),
+        ConditionalRoute(
+            source="plan_extract",
+            router=route_after_plan_extract,
+            targets={
+                "plan_ask": "plan_ask",
+                "plan_retrieve": "plan_retrieve",
             },
         ),
         ConditionalRoute(
@@ -82,6 +108,9 @@ def core_static_edges() -> list[StaticEdge]:
         StaticEdge(source="apply_profile", target="classify"),
         StaticEdge(source="confirm_ready", target="quiz_agent"),
         StaticEdge(source="quiz_tools", target="quiz_agent"),
+        StaticEdge(source="plan_section", target="plan_merge"),
+        StaticEdge(source="plan_merge", target="__end__"),
+        StaticEdge(source="plan_ask", target="__end__"),
         StaticEdge(source="greeting", target="__end__"),
         StaticEdge(source="answer", target="__end__"),
         StaticEdge(source="decline", target="__end__"),

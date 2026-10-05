@@ -3,6 +3,11 @@
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "../types";
 import { MarkdownMessage } from "./markdown-message";
+import {
+  SourcesFromText,
+  SourcesList,
+  splitSourcesBlock,
+} from "./sources-list";
 
 function formatTime(value: number): string {
   try {
@@ -23,9 +28,16 @@ export function MessageBubble({
   onRetry: () => void;
 }) {
   if (message.role === "assistant") {
+    const { body, lines } = splitSourcesBlock(message.text);
+    const structured = message.sources ?? [];
     return (
       <div className="flex w-full flex-col gap-1">
-        <MarkdownMessage text={message.text} />
+        <MarkdownMessage text={body} />
+        {structured.length > 0 ? (
+          <SourcesList sources={structured} />
+        ) : (
+          <SourcesFromText lines={lines} />
+        )}
         <time className="text-[11px] text-muted-foreground">
           {formatTime(message.createdAt)}
         </time>

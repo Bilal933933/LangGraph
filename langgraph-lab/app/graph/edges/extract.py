@@ -1,14 +1,5 @@
-"""موجه الاستخراج (extract ← استيضاح أو تأكيد)."""
+"""توافق خلفي: موجه الاستيضاح انتقل إلى مجلد plan."""
 
-from typing import Literal
+from app.graph.edges.plan.quiz import ExtractTarget, route_after_extract
 
-from app.domain.state import ChatState
-
-ExtractTarget = Literal["ask_clarification", "confirm_ready"]
-
-
-def route_after_extract(state: ChatState) -> ExtractTarget:
-    """الحقول الناقصة ← استيضاح أو تأكيد الاكتمال."""
-    if state.get("missing_fields"):
-        return "ask_clarification"
-    return "confirm_ready"
+__all__ = ["ExtractTarget", "route_after_extract"]
