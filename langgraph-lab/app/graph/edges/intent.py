@@ -8,7 +8,9 @@ from app.core.trace import get_logger
 from app.domain.models import AMBIGUOUS_INTENTS
 from app.domain.state import ChatState
 
-RouteTarget = Literal["greeting", "answer", "decline", "extract", "plan_extract", "extract_profile"]
+RouteTarget = Literal[
+    "greeting", "answer", "decline", "extract", "worksheet_extract", "plan_extract", "extract_profile"
+]
 
 #: نوايا غامضة لا تقطع استكمال طلب ناقص (مركزية في domain.models).
 _AMBIGUOUS_INTENTS = AMBIGUOUS_INTENTS
@@ -16,6 +18,7 @@ _AMBIGUOUS_INTENTS = AMBIGUOUS_INTENTS
 #: توجيه مباشر: نية ← عقدة (الخارج عنها ← answer مع تحذير).
 _DIRECT_ROUTES: dict[str, RouteTarget] = {
     "generate_quiz": "extract",
+    "generate_worksheet": "worksheet_extract",
     "plan_lesson": "plan_extract",
     "unsupported": "decline",
     "update_profile": "extract_profile",
@@ -23,7 +26,7 @@ _DIRECT_ROUTES: dict[str, RouteTarget] = {
 
 
 def _resume_incomplete(state: ChatState) -> RouteTarget | None:
-    """طلب ناقص + نية غامضة ← عقدة الاستكمال (الخطة أولا عند الازدواج)."""
+    """طلب ناقص + نية غامضة ← عقدة الاستكمال (الخطة ثم الاختبار ثم الورقة)."""
     if not state.get("missing_fields"):
         return None
     if state.get("intent") not in _AMBIGUOUS_INTENTS:
@@ -32,6 +35,8 @@ def _resume_incomplete(state: ChatState) -> RouteTarget | None:
         return "plan_extract"
     if state.get("quiz_request") is not None:
         return "extract"
+    if state.get("worksheet_request") is not None:
+        return "worksheet_extract"
     return None
 
 

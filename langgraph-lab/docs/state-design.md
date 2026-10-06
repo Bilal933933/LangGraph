@@ -1,13 +1,14 @@
 # تصميم الحالة (State Design) — الحالي
 
-## الحقول (13 حقلًا في `app/domain/state.py`)
+## الحقول (14 حقلًا في `app/domain/state.py`)
 
 ```python
 class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     teacher_id: NotRequired[int | None]
-    intent: NotRequired[Intent]  # greeting | general_question | generate_quiz | plan_lesson | unsupported | update_profile
+    intent: NotRequired[Intent]  # greeting | general_question | generate_quiz | generate_worksheet | plan_lesson | unsupported | update_profile
     quiz_request: NotRequired[QuizRequest]
+    worksheet_request: NotRequired[WorksheetRequest]
     missing_fields: NotRequired[list[str]]
     pending_profile_name: NotRequired[str | None]
     profile_snapshot: NotRequired[dict[str, object]]  # {name, subject, grades}
@@ -27,6 +28,7 @@ class ChatState(TypedDict):
 | `teacher_id` | `ChatService` / `conversation_service` من المصادقة | `load_profile`, `apply_profile`, `save_profile` | استبدال |
 | `intent` | `classify` | `route_by_intent` | استبدال |
 | `quiz_request` | `extract` | `route_after_extract`, `confirm_ready` | استبدال |
+| `worksheet_request` | `worksheet_extract` (يدمج مع السابق) | `worksheet_retrieve`, `worksheet_write`, `route_after_worksheet_extract` | استبدال |
 | `lesson_request` | `plan_extract` (يدمج مع السابق) | `plan_retrieve`, `plan_section`, `plan_merge` | استبدال |
 | `missing_fields` | `extract` / `plan_extract` | `route_after_extract`, `route_after_plan_extract`, `build_plan_clarification` | استبدال |
 | `profile_snapshot` | `load_profile` / `apply_profile` | `apply_profile`, `build_plan_clarification`, موجهات الإجابة | استبدال |

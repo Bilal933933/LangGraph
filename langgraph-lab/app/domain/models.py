@@ -5,7 +5,13 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Intent = Literal[
-    "greeting", "general_question", "generate_quiz", "plan_lesson", "unsupported", "update_profile"
+    "greeting",
+    "general_question",
+    "generate_quiz",
+    "generate_worksheet",
+    "plan_lesson",
+    "unsupported",
+    "update_profile",
 ]
 
 #: كل النيات المعتمدة (مرجع واحد يمنع تشتت الأسماء).
@@ -13,6 +19,7 @@ INTENT_VALUES: tuple[str, ...] = (
     "greeting",
     "general_question",
     "generate_quiz",
+    "generate_worksheet",
     "plan_lesson",
     "unsupported",
     "update_profile",
@@ -46,6 +53,20 @@ class QuizRequest(BaseModel):
     grade_level: str | None = Field(default=None, min_length=1)
     num_questions: int | None = Field(default=None, gt=0, le=50)
     question_types: list[str] = Field(default_factory=list)
+
+
+class WorksheetRequest(BaseModel):
+    """معاملات طلب ورقة العمل/النشاط (الفارغ = ناقص، عدا kind له افتراضي).
+
+    kind يُستنتج من النص (ورقة/تمارين ← worksheet، نشاط/لعبة صفية ← activity).
+    num_items وminutes اختياريان (افتراضهما عند الكتابة 8 و15).
+    """
+
+    kind: Literal["worksheet", "activity"] | None = None
+    topic: str | None = Field(default=None, min_length=1)
+    grade_level: str | None = Field(default=None, min_length=1)
+    num_items: int | None = Field(default=None, gt=0, le=30)
+    minutes: int | None = Field(default=None, gt=0, le=90)
 
 
 class ProfileName(BaseModel):

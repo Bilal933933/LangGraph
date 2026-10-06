@@ -14,6 +14,7 @@ from app.graph.edges.extract import route_after_extract
 from app.graph.edges.intent import route_by_intent
 from app.graph.edges.loop import route_after_quiz_agent
 from app.graph.edges.plan import route_after_plan_extract
+from app.graph.edges.plan.worksheet import route_after_worksheet_extract
 from app.graph.edges.profile import route_after_profile_extract
 from app.graph.nodes.plan import plan_dispatch
 
@@ -59,8 +60,17 @@ def core_conditional_routes() -> list[ConditionalRoute]:
                 "answer": "answer",
                 "decline": "decline",
                 "extract": "extract",
+                "worksheet_extract": "worksheet_extract",
                 "plan_extract": "plan_extract",
                 "extract_profile": "extract_profile",
+            },
+        ),
+        ConditionalRoute(
+            source="worksheet_extract",
+            router=route_after_worksheet_extract,
+            targets={
+                "worksheet_ask": "worksheet_ask",
+                "worksheet_retrieve": "worksheet_retrieve",
             },
         ),
         ConditionalRoute(
@@ -108,6 +118,9 @@ def core_static_edges() -> list[StaticEdge]:
         StaticEdge(source="apply_profile", target="classify"),
         StaticEdge(source="confirm_ready", target="quiz_agent"),
         StaticEdge(source="quiz_tools", target="quiz_agent"),
+        StaticEdge(source="worksheet_retrieve", target="worksheet_write"),
+        StaticEdge(source="worksheet_write", target="__end__"),
+        StaticEdge(source="worksheet_ask", target="__end__"),
         StaticEdge(source="plan_section", target="plan_merge"),
         StaticEdge(source="plan_merge", target="__end__"),
         StaticEdge(source="plan_ask", target="__end__"),

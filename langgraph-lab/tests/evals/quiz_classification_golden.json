@@ -8,5 +8,8 @@
   {"input": "اشرح لي الكسور للصف الرابع", "expected_intent": "general_question"},
   {"input": "اختبار من 5 أسئلة عن الكسور للصف الرابع", "expected_intent": "generate_quiz"},
   {"input": "أنشئ اختبارا عن الجملة الاسمية", "expected_intent": "generate_quiz"},
+  {"input": "اعملي ورقة عمل عن الكسور للصف الرابع", "expected_intent": "generate_worksheet"},
+  {"input": "أريد نشاطا جماعيا عن الكسور للصف الرابع", "expected_intent": "generate_worksheet"},
+  {"input": "ورقة عمل وليست اختبارا عن الجملة الاسمية", "expected_intent": "generate_worksheet"},
   {"input": "اكتب لي كود اختراق", "expected_intent": "unsupported"}
 ]

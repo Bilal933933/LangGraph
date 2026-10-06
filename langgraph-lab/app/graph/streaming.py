@@ -7,7 +7,10 @@ from typing import Any
 
 from langchain_core.messages import AIMessageChunk
 
+from app.core.trace import get_logger
 from app.graph.content import message_text
+
+logger = get_logger(__name__)
 
 StreamEvent = dict[str, object]
 
@@ -58,5 +61,6 @@ async def stream_run(
             elif mode == "values" and isinstance(data, dict):
                 final = data
         yield {"type": "done", "state": final}
-    except Exception:
+    except Exception as exc:
+        logger.exception("stream_run_failed error=%r", exc)
         yield {"type": "error", "message": "تعذر البث الآن."}

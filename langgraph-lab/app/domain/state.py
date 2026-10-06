@@ -6,7 +6,7 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from app.domain.models import Intent, LessonPlan, LessonRequest, QuizRequest
+from app.domain.models import Intent, LessonPlan, LessonRequest, QuizRequest, WorksheetRequest
 
 
 def _append_sections(
@@ -42,7 +42,7 @@ class ChatState(TypedDict):
     ملكية الحقول (Phase 2):
     - حقن Runtime كل دور: teacher_id (لا اعتماد على Checkpoint له).
     - قرار Graph مؤقت: intent.
-    - تراكم متعدد الأدوار: quiz_request, lesson_request, missing_fields.
+    - تراكم متعدد الأدوار: quiz_request, worksheet_request, lesson_request, missing_fields.
     - مؤقت يُصفّر بعد الاستخدام: pending_profile, pending_profile_name.
     - ناتج الدور: retrieved_sources.
     - Send فقط: section_task (يُصفّر في plan_merge).
@@ -54,6 +54,7 @@ class ChatState(TypedDict):
     teacher_id: NotRequired[int | None]
     intent: NotRequired[Intent]
     quiz_request: NotRequired[QuizRequest]
+    worksheet_request: NotRequired[WorksheetRequest]
     missing_fields: NotRequired[list[str]]
     pending_profile_name: NotRequired[str | None]
     profile_snapshot: NotRequired[dict[str, object]]

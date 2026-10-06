@@ -2,10 +2,13 @@
 
 import json
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Self
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+#: القيمة التطويرية المؤقتة — بقاؤها في الإنتاج خطأ إقلاع صريح.
+DEV_JWT_SECRET = "dev-only-secret-change-me-32-chars!"
 
 
 class Settings(BaseSettings):
@@ -16,10 +19,11 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "langgraph-lab"
+    app_env: str = "development"
     google_api_key: SecretStr = SecretStr("")
     gemini_model: str = "gemini-3.5-flash-lite"
     database_url: SecretStr = SecretStr("")
-    jwt_secret: SecretStr = SecretStr("dev-only-secret-change-me-32-chars!")
+    jwt_secret: SecretStr = SecretStr(DEV_JWT_SECRET)
     jwt_access_minutes: int = 15
     jwt_refresh_days: int = 30
     log_level: str = "INFO"
@@ -47,6 +51,15 @@ class Settings(BaseSettings):
                 return json.loads(text)
             return [o.strip() for o in text.split(",") if o.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _reject_default_jwt_in_prod(self) -> Self:
+        """يرفض الإقلاع بسر التطوير الافتراضي في بيئة الإنتاج."""
+        if self.app_env.strip().lower() == "production":
+            secret = self.jwt_secret.get_secret_value()
+            if secret == DEV_JWT_SECRET or len(secret) < 32:
+                raise ValueError("JWT_SECRET الافتراضي مرفوض في الإنتاج (APP_ENV=production).")
+        return self
 
 
 @lru_cache(maxsize=1)

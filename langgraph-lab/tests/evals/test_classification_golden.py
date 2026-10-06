@@ -76,6 +76,7 @@ _EXPECTED_ROUTES: dict[str, RouteTarget] = {
     "greeting": "greeting",
     "general_question": "answer",
     "generate_quiz": "extract",
+    "generate_worksheet": "worksheet_extract",
     "plan_lesson": "plan_extract",
     "unsupported": "decline",
     "update_profile": "extract_profile",

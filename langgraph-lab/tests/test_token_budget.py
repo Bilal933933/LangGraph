@@ -26,6 +26,19 @@ from app.services import conversation_service as service
 def _llm_result(prompt: int, completion: int) -> Any:
     message = AIMessage(
         content="x",
+        usage_metadata={
+            "input_tokens": prompt,
+            "output_tokens": completion,
+            "total_tokens": prompt + completion,
+        },
+    )
+    gen = SimpleNamespace(message=message)
+    return SimpleNamespace(generations=[[gen]], llm_output={})
+
+
+def _llm_result_legacy(prompt: int, completion: int) -> Any:
+    message = AIMessage(
+        content="x",
         response_metadata={
             "usage_metadata": {
                 "prompt_token_count": prompt,
@@ -42,6 +55,27 @@ def test_collector_sums_gemini_usage() -> None:
     collector.on_llm_end(_llm_result(100, 40))
     collector.on_llm_end(_llm_result(10, 5))
     assert (collector.input_tokens, collector.output_tokens) == (110, 45)
+
+
+def test_collector_prefers_standard_over_legacy() -> None:
+    message = AIMessage(
+        content="x",
+        usage_metadata={"input_tokens": 5, "output_tokens": 6, "total_tokens": 11},
+        response_metadata={
+            "usage_metadata": {"prompt_token_count": 100, "candidates_token_count": 100}
+        },
+    )
+    gen = SimpleNamespace(message=message)
+    result = SimpleNamespace(generations=[[gen]], llm_output={})
+    collector = UsageCollector()
+    collector.on_llm_end(result)
+    assert (collector.input_tokens, collector.output_tokens) == (5, 6)
+
+
+def test_collector_reads_legacy_response_metadata() -> None:
+    collector = UsageCollector()
+    collector.on_llm_end(_llm_result_legacy(100, 40))
+    assert (collector.input_tokens, collector.output_tokens) == (100, 40)
 
 
 def test_collector_falls_back_to_llm_output() -> None:

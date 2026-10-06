@@ -38,6 +38,12 @@ from app.graph.nodes.profile import (
     make_save_profile_node,
 )
 from app.graph.nodes.quiz_agent import make_quiz_agent_node
+from app.graph.nodes.worksheet import (
+    make_worksheet_ask_node,
+    make_worksheet_extract_node,
+    make_worksheet_retrieve_node,
+    make_worksheet_write_node,
+)
 
 
 def core_nodes(
@@ -77,5 +83,9 @@ def core_nodes(
         "plan_section": make_plan_section_node(model),
         "plan_ask": make_plan_clarification_node(),
         "plan_merge": make_plan_merge_node(model),
+        "worksheet_extract": make_worksheet_extract_node(structured),
+        "worksheet_ask": make_worksheet_ask_node(),
+        "worksheet_retrieve": make_worksheet_retrieve_node(knowledge),
+        "worksheet_write": make_worksheet_write_node(model),
     }
     return nodes
