@@ -1,9 +1,14 @@
 """جدول السؤال (منقول كما هو)."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import JSON, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base import Base
+
+if TYPE_CHECKING:
+    from app.db.models.quiz import Quiz
 
 
 class Question(Base):

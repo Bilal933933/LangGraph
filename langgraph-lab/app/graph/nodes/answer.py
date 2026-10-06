@@ -1,8 +1,10 @@
 """عقد الردود (تحية وإجابة ورفض)."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from app.core.config import get_settings
 from app.core.trace import get_logger, preview, stage
@@ -50,10 +52,12 @@ def make_answer_node(
     model: ChatModelPort,
     knowledge: KnowledgeSearchPort | None = None,
     limit: int | None = None,
-) -> Callable[[ChatState], dict[str, object]]:
+) -> Callable[..., Coroutine[Any, Any, dict[str, object]]]:
     """مصنع الإجابة: يغلق (Closure) على النموذج ومستودع المعرفة الاختياري."""
 
-    def _answer(state: ChatState) -> dict[str, object]:
+    async def _answer(
+        state: ChatState, config: RunnableConfig | None = None
+    ) -> dict[str, object]:
         logger = get_logger()
         with stage(logger, "answer.build_prompt", history=len(state["messages"])):
             prompt = select_window(list(state["messages"]))
@@ -85,7 +89,9 @@ def make_answer_node(
             instruction is not None,
         )
         with stage(logger, "answer.model_invoke", prompt_messages=len(prompt)):
-            reply = model.invoke(prompt)
+            callbacks: Any = config.get("callbacks") if config is not None else None
+            parts = [delta async for delta in model.astream(prompt, callbacks=callbacks)]
+        reply = AIMessage(content="".join(parts))
         reply.name = "answer"
         logger.info(
             "stage=answer.reply chars=%d preview=%s",

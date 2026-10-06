@@ -2,28 +2,15 @@
 
 from fastmcp import FastMCP
 
+from app.mcp.fetch_guard import fetch_text
+
 mcp = FastMCP("fetch-server")
 
 
 @mcp.tool
 def fetch_url(url: str, max_chars: int = 6000) -> str:
-    """يجلب نص صفحة ويب برابطها المباشر."""
-    import httpx
-
-    cleaned = url.strip()[:2000]
-    if not (cleaned.startswith("http://") or cleaned.startswith("https://")):
-        return "الرابط يجب أن يبدأ بـ http:// أو https://."
-    try:
-        res = httpx.get(cleaned, timeout=15.0, follow_redirects=True)
-        if res.status_code != 200:
-            return f"تعذر الجلب (HTTP {res.status_code})."
-        text = res.text.strip()
-    except Exception:
-        return "تعذر الجلب الآن."
-    if not text:
-        return "الصفحة فارغة."
-    safe = max(500, min(int(max_chars), 20000))
-    return text[:safe]
+    """يجلب نص صفحة ويب برابطها المباشر (مضيف عام فقط، بلا شبكات داخلية)."""
+    return fetch_text(url, max_chars)
 
 
 if __name__ == "__main__":

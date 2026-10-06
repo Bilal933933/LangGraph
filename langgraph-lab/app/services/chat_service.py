@@ -1,11 +1,15 @@
 """منطق التطبيق (Use Case الوحيد)."""
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage
+from sqlalchemy.orm import Session
 
+from app.core.usage import UsageCollector, record_usage
 from app.graph.content import message_text
 from app.graph.nodes.plan import build_plan_clarification
+from app.graph.streaming import invoke_sync, stream_run
 
 
 class ChatService:
@@ -53,18 +57,72 @@ class ChatService:
         return reply
 
     def handle_message_detail(
-        self, message: str, thread_id: str = "default", teacher_id: int | None = None
+        self,
+        message: str,
+        thread_id: str = "default",
+        teacher_id: int | None = None,
+        session: Session | None = None,
+        usage_subject: str | None = None,
     ) -> dict[str, object]:
         """نص الدخل ← {reply, sources, clarification} للديلوج عند النواقص."""
+        payload, config = self._run_args(message, thread_id, teacher_id)
+        collector: UsageCollector | None = None
+        if session is not None and usage_subject is not None:
+            collector = UsageCollector()
+            config = {**config, "callbacks": [collector]}
+        result = invoke_sync(self._graph, payload, config)
+        detail = self._detail_from_state(result)
+        if collector is not None and session is not None and usage_subject is not None:
+            record_usage(session, usage_subject, collector.input_tokens, collector.output_tokens)
+        return detail
+
+    async def stream_message_detail(
+        self,
+        message: str,
+        thread_id: str = "default",
+        teacher_id: int | None = None,
+        session: Session | None = None,
+        usage_subject: str | None = None,
+    ) -> AsyncIterator[dict[str, object]]:
+        """يبث stage/token ثم done بالتفصيل الكامل (نفس شكل handle_message_detail)."""
+        payload, config = self._run_args(message, thread_id, teacher_id)
+        collector: UsageCollector | None = None
+        if session is not None and usage_subject is not None:
+            collector = UsageCollector()
+            config = {**config, "callbacks": [collector]}
+        async for event in stream_run(self._graph, payload, config):
+            if event.get("type") == "done":
+                state = event.get("state")
+                assert isinstance(state, dict)
+                if (
+                    collector is not None
+                    and session is not None
+                    and usage_subject is not None
+                ):
+                    record_usage(
+                        session, usage_subject, collector.input_tokens, collector.output_tokens
+                    )
+                yield {"type": "done", **self._detail_from_state(state)}
+            else:
+                yield event
+
+    def _run_args(
+        self, message: str, thread_id: str, teacher_id: int | None
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        """مدخلات مشتركة للمسارين المتزامن والمتدفق."""
         cleaned = message.strip()
         thread = thread_id.strip() or "default"
         payload: dict[str, object] = {"messages": [HumanMessage(content=cleaned)]}
         if teacher_id is not None:
             payload["teacher_id"] = teacher_id
-        result: dict[str, object] = self._graph.invoke(
-            payload,
-            {"configurable": {"thread_id": thread}, "recursion_limit": self.MAX_STEPS},
-        )
+        config: dict[str, object] = {
+            "configurable": {"thread_id": thread},
+            "recursion_limit": self.MAX_STEPS,
+        }
+        return payload, config
+
+    def _detail_from_state(self, result: dict[str, object]) -> dict[str, object]:
+        """حالة نهائية ← {reply, sources, clarification}."""
         messages = result["messages"]
         assert isinstance(messages, list)
         last = messages[-1]

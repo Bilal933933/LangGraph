@@ -7,6 +7,7 @@ from app.db.models.message import Message
 from app.db.models.question import Question
 from app.db.models.quiz import Quiz
 from app.db.models.teacher import Teacher, TeacherGrade
+from app.db.models.token_usage import TokenUsage
 
 __all__ = [
     "Base",
@@ -17,4 +18,5 @@ __all__ = [
     "Quiz",
     "Teacher",
     "TeacherGrade",
+    "TokenUsage",
 ]

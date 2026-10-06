@@ -1,5 +1,8 @@
 """اختبارات محادثات المسجل (sqlite في الذاكرة، رسم وهمي بلا Gemini)."""
 
+from collections.abc import AsyncIterator
+from typing import Any
+
 import pytest
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, BaseMessage
@@ -26,8 +29,14 @@ from tests.test_phase1 import FakeStructuredGeneral
 class FakeModel:
     """نموذج وهمي يعد الرسائل ليثبت استعادة السياق."""
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         return AIMessage(content=f"fake-reply-to-{len(messages)}-messages")
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = callbacks
+        yield f"fake-reply-to-{len(messages)}-messages"
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools

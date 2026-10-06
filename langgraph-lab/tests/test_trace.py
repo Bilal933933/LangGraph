@@ -1,6 +1,8 @@
 """اختبارات التتبع: مراحل رد النموذج تُسجل في ملف."""
 
+from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 from langchain_core.messages import HumanMessage
 
@@ -11,10 +13,16 @@ from app.graph.nodes.answer import make_answer_node
 class FakeModel:
     """نموذج وهمي للتحقق من تسجيل المراحل بلا Gemini."""
 
-    def invoke(self, messages: list[object]) -> object:
+    def invoke(self, messages: list[object], callbacks: Any = None) -> object:
         from langchain_core.messages import AIMessage
 
         return AIMessage(content=f"fake-reply-to-{len(messages)}-messages")
+
+    async def astream(
+        self, messages: list[object], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = callbacks
+        yield f"fake-reply-to-{len(messages)}-messages"
 
 
 def test_setup_logging_writes_to_file(tmp_path: Path) -> None:
@@ -37,9 +45,11 @@ def test_stage_context_logs_start_end_with_latency(tmp_path: Path) -> None:
 
 def test_answer_node_logs_reply_stages(tmp_path: Path) -> None:
     """عقدة الإجابة ← المراحل الثلاث في الملف (موجه/استدعاء/رد)."""
+    import asyncio
+
     log_file = setup_logging(log_dir=tmp_path, level="DEBUG")
     node = make_answer_node(FakeModel())  # type: ignore[arg-type]
-    result = node({"messages": [HumanMessage(content="مرحبا")]})
+    result = asyncio.run(node({"messages": [HumanMessage(content="مرحبا")]}))
     assert len(result["messages"]) == 1
     text = log_file.read_text(encoding="utf-8")
     assert "answer.build_prompt" in text

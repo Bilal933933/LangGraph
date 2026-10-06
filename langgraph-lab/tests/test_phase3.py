@@ -1,6 +1,7 @@
 """اختبارات المرحلة 3: حلقة الوكيل والأدوات (وهمي بلا Gemini)."""
 
-from typing import TypeVar, cast
+from collections.abc import AsyncIterator
+from typing import Any, TypeVar, cast
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.tools import BaseTool
@@ -48,7 +49,7 @@ class FakeAgentModel:
     def __init__(self) -> None:
         self.calls = 0
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         self.calls += 1
         if self.calls == 1:
             return AIMessage(
@@ -63,6 +64,12 @@ class FakeAgentModel:
                 ],
             )
         return AIMessage(content="اختبار الكسور: 1) ما البسط؟")
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = (messages, callbacks)
+        yield "اختبار الكسور: 1) ما البسط؟"
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools

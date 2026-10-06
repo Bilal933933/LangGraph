@@ -1,6 +1,7 @@
 """اختبارات المرحلة 1: المسار العام عبر الرسم الجديد بدون Gemini الحقيقي."""
 
-from typing import TypeVar, cast
+from collections.abc import AsyncIterator
+from typing import Any, TypeVar, cast
 
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, BaseMessage
@@ -20,8 +21,14 @@ T = TypeVar("T", bound=BaseModel)
 class FakeModel:
     """نموذج وهمي يحقق ChatModelPort للاختبار المعزول."""
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         return AIMessage(content=f"fake-reply-to-{len(messages)}-messages")
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = callbacks
+        yield f"fake-reply-to-{len(messages)}-messages"
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools

@@ -15,6 +15,7 @@ from app.api.schemas import (
 )
 from app.auth.deps import get_current_user, get_db
 from app.auth.models import User
+from app.core.limits import limit_user_chat
 from app.db.models.conversation import Conversation
 from app.services import conversation_service as service
 
@@ -94,6 +95,7 @@ def post_message(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db)],
     graph: Annotated[Any, Depends(get_conversation_graph)],
+    _: Annotated[None, Depends(limit_user_chat)],
 ) -> SendMessageOut:
     """يرسل رسالة ضمن محادثتي: ملكية ← حفظ ← رسم ← حفظ الرد مع مصادره."""
     from app.api.schemas import ClarificationOut, SourceOut

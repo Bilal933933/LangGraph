@@ -13,7 +13,10 @@ def get_engine(database_url: str) -> Engine:
 
 
 def create_tables(engine: Engine) -> None:
-    """ينشئ كل جداول العمل (تشمل knowledge_chunks) إن غابت. بلا إضافات/فهارس."""
+    """ينشئ كل جداول العمل للاختبار والسكربتات فقط (sqlite في الذاكرة).
+
+    ممنوع استدعاؤها عند إقلاع API — الإقلاع يستخدم Alembic عبر app.db.migrate.
+    """
     import app.auth.models as _auth_models  # noqa: F401 - تسجيل users قبل create_all
     import app.db.models as _models  # noqa: F401 - تسجيل knowledge_chunks
 

@@ -1,6 +1,7 @@
 """اختبارات المرحلة 2: تصنيف واستخراج مولد الاختبارات (وهمي بلا Gemini)."""
 
-from typing import TypeVar, cast
+from collections.abc import AsyncIterator
+from typing import Any, TypeVar, cast
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.tools import BaseTool
@@ -21,9 +22,16 @@ class FakeChat:
     def __init__(self) -> None:
         self.calls = 0
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         self.calls += 1
         return AIMessage(content=f"fake-reply-to-{len(messages)}-messages")
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = callbacks
+        self.calls += 1
+        yield f"fake-reply-to-{len(messages)}-messages"
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools

@@ -2,12 +2,14 @@ services:
   db:
     image: postgres:16
     container_name: langgraph-lab-db
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: lab
-      POSTGRES_PASSWORD: 12345678
-      POSTGRES_DB: langgraph_lab
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-langgraph_lab}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - lab-pgdata:/var/lib/postgresql/data
 

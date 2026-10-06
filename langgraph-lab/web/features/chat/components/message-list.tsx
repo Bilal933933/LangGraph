@@ -9,10 +9,12 @@ import type { ChatMessage } from "../types";
 export function MessageList({
   messages,
   sending,
+  stage,
   onRetry,
 }: {
   messages: ChatMessage[];
   sending: boolean;
+  stage?: string | null;
   onRetry: () => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
@@ -30,7 +32,7 @@ export function MessageList({
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} onRetry={onRetry} />
         ))}
-        {sending && <TypingIndicator />}
+        {sending && <TypingIndicator stage={stage} />}
         <div ref={endRef} />
       </div>
     </ScrollArea>

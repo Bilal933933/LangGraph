@@ -4,7 +4,8 @@
 هذا الملف يبقى مؤقتا حتى تكتمل إعادة التسمية في كل الاستيرادات.
 """
 
-from app.graph.nodes.quiz_agent import QUIZ_AGENT_SYSTEM, make_quiz_agent_node
+from app.graph.nodes.quiz_agent import make_quiz_agent_node
+from app.graph.prompts import QUIZ_AGENT_SYSTEM
 
 AGENT_SYSTEM = QUIZ_AGENT_SYSTEM
 

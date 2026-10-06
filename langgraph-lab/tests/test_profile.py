@@ -1,6 +1,7 @@
 """اختبارات مسار الملف الشخصي: استخراج الاسم + حفظه بالهوية من الحالة."""
 
-from typing import TypeVar, cast
+from collections.abc import AsyncIterator
+from typing import Any, TypeVar, cast
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.tools import BaseTool
@@ -18,8 +19,14 @@ T = TypeVar("T", bound=BaseModel)
 class FakeChat:
     """نموذج نصي وهمي (لا يستخدم في مسار الملف، لكن البناء يتطلبه)."""
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         return AIMessage(content="fake")
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = (messages, callbacks)
+        yield "fake"
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools
@@ -133,9 +140,15 @@ class FakeAnswer:
     def __init__(self, text: str = "شرح الكسور هنا") -> None:
         self._text = text
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         _ = messages
         return AIMessage(content=self._text)
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = (messages, callbacks)
+        yield self._text
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools
@@ -193,9 +206,16 @@ class RecordingAnswer:
         self._text = text
         self.seen: list[BaseMessage] = []
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         self.seen = list(messages)
         return AIMessage(content=self._text)
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = callbacks
+        self.seen = list(messages)
+        yield self._text
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools

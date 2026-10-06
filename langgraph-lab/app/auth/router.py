@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.auth.deps import get_current_user, get_repo
 from app.auth.models import User
@@ -10,6 +10,7 @@ from app.auth.repository import SqlAuthRepository
 from app.auth.schemas import LoginIn, MeOut, RefreshIn, RegisterIn, TokenPairOut
 from app.auth.service import AuthService
 from app.core.config import get_settings
+from app.core.limits import limit_auth_request
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -26,7 +27,10 @@ def _service(repo: SqlAuthRepository) -> AuthService:
 
 @router.post("/register", response_model=TokenPairOut, status_code=status.HTTP_201_CREATED)
 def post_register(
-    payload: RegisterIn, repo: Annotated[SqlAuthRepository, Depends(get_repo)]
+    payload: RegisterIn,
+    request: Request,
+    repo: Annotated[SqlAuthRepository, Depends(get_repo)],
+    _: Annotated[None, Depends(limit_auth_request)],
 ) -> TokenPairOut:
     """تسجيل مستخدم جديد ← توكنان."""
     pair = _service(repo).register(payload.email, payload.password)
@@ -35,7 +39,10 @@ def post_register(
 
 @router.post("/login", response_model=TokenPairOut)
 def post_login(
-    payload: LoginIn, repo: Annotated[SqlAuthRepository, Depends(get_repo)]
+    payload: LoginIn,
+    request: Request,
+    repo: Annotated[SqlAuthRepository, Depends(get_repo)],
+    _: Annotated[None, Depends(limit_auth_request)],
 ) -> TokenPairOut:
     """دخول ← توكنان جديدان."""
     pair = _service(repo).login(payload.email, payload.password)

@@ -1,6 +1,7 @@
 """الواجهات (Protocols = عقود تجريدية لعكس الاعتماد)."""
 
-from typing import Protocol, TypeVar
+from collections.abc import AsyncIterator
+from typing import Any, Protocol, TypeVar
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.tools import BaseTool
@@ -10,12 +11,20 @@ from pydantic import BaseModel
 class ChatModelPort(Protocol):
     """عقد النموذج: أي نموذج (Gemini/وهمي للاختبار) يلتزم به."""
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AIMessage:
         """رسائل الدخل ← رسالة النموذج كاملة (قد تحمل tool_calls)."""
         ...
 
     def bind_tools(self, tools: list[BaseTool]) -> "ChatModelPort":
         """يربط الأدوات ← نموذج قادر على طلب استدعائها."""
+        ...
+
+    def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        """بث تدريجي لنص الرد؛ callbacks تُمرر ليلتقطها وضع messages."""
         ...
 
 
@@ -101,4 +110,16 @@ class KnowledgeSourcePort(Protocol):
 
     def get_source(self, chunk_id: int) -> dict[str, object] | None:
         """معرف المقطع ← {id, title, text, subject, lesson} أو None."""
+        ...
+
+
+class FileRepositoryPort(Protocol):
+    """عقد ملفات data: سرد آمن داخل الجذر + قراءة نصية محدودة."""
+
+    def list(self, subdir: str = "") -> list[str]:
+        """مجلد فرعي نسبي ← أسماء مرتبة أو [] عند الغياب."""
+        ...
+
+    def read(self, name: str, max_chars: int = 6000) -> str | None:
+        """اسم ملف نسبي ← نصه أو None (مفقود/كبير/غير نصي)."""
         ...

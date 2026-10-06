@@ -6,8 +6,10 @@
 """
 
 from collections.abc import Callable
+from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from app.domain.models import LessonPlan
 from app.domain.ports import ChatModelPort
@@ -36,7 +38,9 @@ def make_quiz_agent_node(
 ) -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
     """مصنع وكيل الاختبارات: يغلق على نموذج مربوط بأدوات الاختبارات فقط."""
 
-    def _quiz_agent(state: ChatState) -> dict[str, list[BaseMessage]]:
+    def _quiz_agent(
+        state: ChatState, config: RunnableConfig | None = None
+    ) -> dict[str, list[BaseMessage]]:
         request = state.get("quiz_request")
         topic = request.topic if request and request.topic else ""
         plan = _coerce_plan(state.get("plan_draft"))
@@ -57,7 +61,8 @@ def make_quiz_agent_node(
             HumanMessage(content=f"ولد اختبارا عن: {topic or last_text}"),
             *history[-4:],
         ]
-        reply = model.invoke(prompt)
+        callbacks: Any = config.get("callbacks") if config is not None else None
+        reply = model.invoke(prompt, callbacks=callbacks)
         reply.name = "quiz_agent"
         return {"messages": [reply]}
 

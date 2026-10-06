@@ -62,7 +62,7 @@ export async function postConversationMessage(
   return { reply: reply.reply, sources: extractSources(data), clarification: extractClarification(reply) };
 }
 
-function extractClarification(data: { clarification?: unknown }): Clarification | null {
+export function extractClarification(data: { clarification?: unknown }): Clarification | null {
   if (typeof data.clarification !== "object" || data.clarification === null) return null;
   const item = data.clarification as Record<string, unknown>;
   if (!Array.isArray(item.missing)) return null;
@@ -85,7 +85,7 @@ function extractClarification(data: { clarification?: unknown }): Clarification 
   };
 }
 
-function extractSources(data: { reply: string; sources?: unknown }): ChatSource[] {
+export function extractSources(data: { reply: string; sources?: unknown }): ChatSource[] {
   if (!Array.isArray(data.sources)) return [];
   return data.sources
     .filter(
@@ -110,7 +110,7 @@ function isMessageReply(data: unknown): data is { reply: string } {
   );
 }
 
-function extractErrorMessage(data: unknown, status: number): string {
+export function extractErrorMessage(data: unknown, status: number): string {
   if (typeof data === "object" && data !== null && "error" in data) {
     const err = (data as { error: unknown }).error;
     if (typeof err === "object" && err !== null && "message" in err) {

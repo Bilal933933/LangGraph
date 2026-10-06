@@ -43,18 +43,21 @@ class PgKnowledgeRepository:
         engine = get_engine(self._url)
         try:
             with Session(engine) as session:
-                sem = session.execute(
-                    text(
-                        "SELECT title, text, subject, lesson "
-                        "FROM knowledge_chunks "
-                        "ORDER BY embedding <=> CAST(:v AS vector) "
-                        "LIMIT :lim"
-                    ),
-                    {
-                        "v": "[" + ",".join(f"{x:.6f}" for x in vector) + "]",
-                        "lim": pool,
-                    },
-                ).all()
+                sem: list[tuple[object, object, object, object]] = [
+                    (row[0], row[1], row[2], row[3])
+                    for row in session.execute(
+                        text(
+                            "SELECT title, text, subject, lesson "
+                            "FROM knowledge_chunks "
+                            "ORDER BY embedding <=> CAST(:v AS vector) "
+                            "LIMIT :lim"
+                        ),
+                        {
+                            "v": "[" + ",".join(f"{x:.6f}" for x in vector) + "]",
+                            "lim": pool,
+                        },
+                    ).all()
+                ]
                 lex = [
                     (c["title"], c["text"], c["subject"], c["lesson"])
                     for c in self.search(query, pool)

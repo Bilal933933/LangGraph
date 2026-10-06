@@ -1,17 +1,21 @@
 """Use Case المحادثات المملوكة: ملكية أولًا ثم الرسم أو السجل."""
 
-from typing import Any
+from collections.abc import AsyncIterator
+from typing import Any, cast
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.core.errors import AppError, ErrorCode
+from app.core.usage import UsageCollector, record_usage, subject_for_user
 from app.db.models.conversation import Conversation
 from app.db.models.message import Message
 from app.db.models.teacher import Teacher
+from app.domain.state import ChatState
 from app.graph.content import message_text
 from app.graph.nodes.plan import build_plan_clarification
+from app.graph.streaming import invoke_sync
 from app.services.chat_service import ChatService
 
 #: طول عنوان المحادثة التلقائي من أول رسالة.
@@ -94,15 +98,24 @@ def send_message_detail(
     thread = ChatService.thread_id_for_conversation(user.id, conv.id)
     payload: dict[str, Any] = {"messages": [HumanMessage(content=cleaned)]}
     payload["teacher_id"] = conv.teacher_id
-    result: dict[str, Any] = graph.invoke(
+    collector = UsageCollector()
+    result: dict[str, Any] = invoke_sync(
+        graph,
         payload,
-        {"configurable": {"thread_id": thread}, "recursion_limit": ChatService.MAX_STEPS},
+        {
+            "configurable": {"thread_id": thread},
+            "recursion_limit": ChatService.MAX_STEPS,
+            "callbacks": [collector],
+        },
     )
     reply = message_text(result["messages"][-1].content)
     sources = result.get("retrieved_sources", [])
     if not isinstance(sources, list):
         sources = []
-    clarification = build_plan_clarification(result)
+    clarification = build_plan_clarification(cast("ChatState", result))
+    record_usage(
+        session, subject_for_user(user.id), collector.input_tokens, collector.output_tokens
+    )
 
     session.add(Message(conversation_id=conv.id, role="assistant", content=reply))
     if not conv.title:
@@ -113,3 +126,72 @@ def send_message_detail(
         "sources": sources,
         "clarification": clarification.model_dump() if clarification is not None else None,
     }
+
+
+async def stream_message_detail(
+    session: Session, graph: Any, user: User, conversation_id: int, text: str
+) -> AsyncIterator[dict[str, object]]:
+    """يبث stage/token ثم done مع حفظ user أولًا وassistant عند الاكتمال."""
+    from app.graph.streaming import stream_run
+
+    cleaned = text.strip()
+    conv = _owned_conversation(session, user, conversation_id)
+    session.add(Message(conversation_id=conv.id, role="user", content=cleaned))
+    session.flush()
+
+    thread = ChatService.thread_id_for_conversation(user.id, conv.id)
+    payload: dict[str, Any] = {"messages": [HumanMessage(content=cleaned)]}
+    payload["teacher_id"] = conv.teacher_id
+    collector = UsageCollector()
+    config: dict[str, Any] = {
+        "configurable": {"thread_id": thread},
+        "recursion_limit": ChatService.MAX_STEPS,
+        "callbacks": [collector],
+    }
+    async for event in stream_run(graph, payload, config):
+        if event.get("type") != "done":
+            yield event
+            continue
+        state = event.get("state")
+        assert isinstance(state, dict)
+        messages = state["messages"]
+        assert isinstance(messages, list)
+        last = messages[-1]
+        assert isinstance(last, BaseMessage)
+        reply = message_text(last.content)
+        sources = state.get("retrieved_sources", [])
+        if not isinstance(sources, list):
+            sources = []
+        clarification = build_plan_clarification(cast("ChatState", state))
+        record_usage(
+            session,
+            subject_for_user(user.id),
+            collector.input_tokens,
+            collector.output_tokens,
+        )
+        if event.get("type") != "done":
+            yield event
+            continue
+        state = event.get("state")
+        assert isinstance(state, dict)
+        messages = state["messages"]
+        assert isinstance(messages, list)
+        last = messages[-1]
+        assert isinstance(last, BaseMessage)
+        reply = message_text(last.content)
+        sources = state.get("retrieved_sources", [])
+        if not isinstance(sources, list):
+            sources = []
+        clarification = build_plan_clarification(cast("ChatState", state))
+        session.add(Message(conversation_id=conv.id, role="assistant", content=reply))
+        if not conv.title:
+            conv.title = cleaned[:TITLE_LEN]
+        session.flush()
+        yield {
+            "type": "done",
+            "reply": reply,
+            "sources": sources,
+            "clarification": (
+                clarification.model_dump() if clarification is not None else None
+            ),
+        }

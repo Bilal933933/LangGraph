@@ -14,6 +14,7 @@ MODEL_DIR = os.getenv(
 MODEL_FILE = os.getenv("LOCAL_EMBEDDING_MODEL", "model_O4.onnx")
 MODEL_DIM = 384
 QUERY_PREFIX = "query: "
+PASSAGE_PREFIX = "passage: "
 MAX_LENGTH = 512
 
 _lock = threading.Lock()
@@ -40,14 +41,24 @@ def _load() -> None:
 
 def embed_query(text: str) -> list[float]:
     """سؤال ← متجه 384 مُطبّع. فارغ ← خطأ ValueError."""
+    return _embed(QUERY_PREFIX, text, "نص السؤال فارغ.")
+
+
+def embed_passage(text: str) -> list[float]:
+    """مقطع معرفة ← متجه 384 مُطبّع (بروتوكول e5: passages بـ `passage:`)."""
+    return _embed(PASSAGE_PREFIX, text, "نص المقطع فارغ.")
+
+
+def _embed(prefix: str, text: str, empty_message: str) -> list[float]:
+    """خط التضمين المشترك: بادئة e5 ← ترميز ← تجميع مرجح ← تطبيع."""
     import numpy as np
 
     cleaned = text.strip()
     if not cleaned:
-        raise ValueError("نص السؤال فارغ.")
+        raise ValueError(empty_message)
     _load()
     assert _session is not None and _tokenizer is not None
-    encoded = _tokenizer.encode(QUERY_PREFIX + cleaned[:2000])
+    encoded = _tokenizer.encode(prefix + cleaned[:2000])
     ids = encoded.ids[:MAX_LENGTH]
     mask = encoded.attention_mask[:MAX_LENGTH]
     inputs = {

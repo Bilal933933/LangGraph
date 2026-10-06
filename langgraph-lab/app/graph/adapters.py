@@ -1,5 +1,6 @@
 """محولات Gemini (تنفيذ المنافذ، بلا منطق رسم)."""
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage
@@ -21,11 +22,21 @@ class GeminiChatModel:
         llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
         self._llm = llm.bind_tools(tools) if tools else llm
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
-        result = self._llm.invoke(messages)
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
+        result = self._llm.invoke(messages, config={"callbacks": callbacks or []})
         text = message_text(result.content)
         tool_calls = list(result.tool_calls or [])
         return AIMessage(content=text, tool_calls=tool_calls)
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        """يبث عبر Runnable مع تمرير callbacks ليلتقطها وضع messages."""
+        from langchain_core.runnables import RunnableConfig
+
+        config: RunnableConfig = {"callbacks": callbacks or []}
+        async for chunk in self._llm.astream(messages, config=config):
+            yield message_text(chunk.content)
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         """يربط الأدوات ← محول جديد بأدوات مربوطة."""

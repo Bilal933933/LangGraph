@@ -54,16 +54,15 @@ def make_extract_node(
         # نملأ من خطة الدرس الجاهزة في نفس الجلسة بدلا من السؤال مجددا.
         # العدد الافتراضي 5 عند الزر فقط، والمباشر بلا خطة يبقى يسأل.
         has_plan = "plan_draft" in state and state.get("plan_draft") is not None
-        if (not topic or not grade) and isinstance(state.get("plan_draft"), LessonPlan):
-            plan = state["plan_draft"]
-            if isinstance(plan, LessonPlan):
-                topic = topic or plan.topic
-                grade = grade or plan.grade_level
-        elif (not topic or not grade) and isinstance(state.get("plan_draft"), dict):
-            raw = state.get("plan_draft")
-            if isinstance(raw, dict):
-                topic = topic or (str(raw.get("topic") or "") or None)
-                grade = grade or (str(raw.get("grade_level") or "") or None)
+        draft: object = state.get("plan_draft")
+        if (not topic or not grade) and isinstance(draft, LessonPlan):
+            plan = draft
+            topic = topic or plan.topic
+            grade = grade or plan.grade_level
+        elif (not topic or not grade) and isinstance(draft, dict):
+            raw = draft
+            topic = topic or (str(raw.get("topic") or "") or None)
+            grade = grade or (str(raw.get("grade_level") or "") or None)
         if has_plan and not num:
             num = 5
         req = QuizRequest(

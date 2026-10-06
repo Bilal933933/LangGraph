@@ -7,6 +7,7 @@
 from collections.abc import Callable
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.types import Send
 
 from app.core.config import get_settings
@@ -166,7 +167,9 @@ def make_plan_section_node(
 ) -> Callable[[ChatState], dict[str, object]]:
     """عامل قسم واحد: (طلب + مصادر + نوع القسم) ← قسم مهيكل."""
 
-    def _section(state: ChatState) -> dict[str, object]:
+    def _section(
+        state: ChatState, config: RunnableConfig | None = None
+    ) -> dict[str, object]:
         kind = state.get("section_task") or "objectives"
         system = PLAN_SECTION_SYSTEMS.get(str(kind), PLAN_SECTION_SYSTEMS["objectives"])
         req: object = state.get("lesson_request")
@@ -198,7 +201,9 @@ def make_plan_section_node(
                 )
             )
         )
-        reply = model.invoke(prompt)
+        reply = model.invoke(
+            prompt, callbacks=config.get("callbacks") if config is not None else None
+        )
         body = message_text(reply.content).strip() or "تعذر التوليد من المصادر."
         section = {"kind": str(kind), "title": str(kind), "body": body}
         return {"plan_sections": [section]}
@@ -260,7 +265,9 @@ def make_plan_merge_node(
     فيبقى عدد الاستدعاءات محدوداً ولا حلقة لانهائية.
     """
 
-    def _merge(state: ChatState) -> dict[str, object]:
+    def _merge(
+        state: ChatState, config: RunnableConfig | None = None
+    ) -> dict[str, object]:
         req: object = state.get("lesson_request")
         if isinstance(req, LessonRequest):
             topic, grade, minutes = req.topic or "الدرس", req.grade_level or "", req.minutes or 45
@@ -297,7 +304,12 @@ def make_plan_merge_node(
                     )
                 )
                 try:
-                    fixed = message_text(model.invoke(prompt).content).strip()
+                    fixed = message_text(
+                        model.invoke(
+                            prompt,
+                            callbacks=config.get("callbacks") if config is not None else None,
+                        ).content
+                    ).strip()
                 except Exception:
                     fixed = ""
                 if fixed and not is_evasive(fixed, topic):
@@ -316,7 +328,10 @@ def make_plan_merge_node(
             list(state.get("retrieved_sources", []) or []), limit=eff
         )
         text = render_lesson_plan(plan, block)
-        text = f"{text}\n\n---\nلإنشاء اختبار لهذا الدرس أرسل: أنشئ اختبارا لهذا الدرس (5 أسئلة افتراضا)."
+        text = (
+            f"{text}\n\n---\nلإنشاء اختبار لهذا الدرس أرسل: "
+            "أنشئ اختبارا لهذا الدرس (5 أسئلة افتراضا)."
+        )
         return {"plan_draft": plan, "messages": [AIMessage(content=text)], "section_task": None}
 
     return _merge

@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSendMessage } from "../hooks/use-send-message";
+import { useStreamMessage } from "../hooks/use-stream-message";
 import { useChatStore } from "../store/chat-store";
 import {
   useConversationDetail,
@@ -37,7 +37,9 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
   const setSidebarOpen = useChatStore((state) => state.setSidebarOpen);
   const { data: chats = [] } = useConversations();
   const detail = useConversationDetail(conversationId);
-  const { send, sending, retryLast } = useSendMessage(conversationId);
+  const { send, sending, retryLast } = useStreamMessage(conversationId);
+  const streamingText = useChatStore((state) => state.streamingText);
+  const streamStage = useChatStore((state) => state.streamStage);
   const [draft, setDraft] = useState("");
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -46,7 +48,19 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
   );
 
   const activeChat = chats.find((chat) => chat.id === conversationId);
-  const messages = detail.data ? toUiMessages(detail.data.messages) : [];
+  const baseMessages = detail.data ? toUiMessages(detail.data.messages) : [];
+  const messages =
+    streamingText.length > 0
+      ? [
+          ...baseMessages,
+          {
+            id: "streaming",
+            role: "assistant" as const,
+            text: streamingText,
+            createdAt: 0,
+          },
+        ]
+      : baseMessages;
   const showDetailSkeleton = conversationId !== null && detail.isPending;
   const isEmpty = messages.length === 0 && !sending && !detail.isPending;
 
@@ -102,7 +116,8 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
         ) : (
           <MessageList
             messages={messages}
-            sending={sending}
+            sending={sending && streamingText.length === 0}
+            stage={streamStage}
             onRetry={retryLast}
           />
         )}

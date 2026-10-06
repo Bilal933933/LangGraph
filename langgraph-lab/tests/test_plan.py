@@ -1,6 +1,7 @@
 """اختبارات التحضير: كشف التهرب وبوابة الدمج (وهمي بلا Gemini)."""
 
-from typing import cast
+from collections.abc import AsyncIterator
+from typing import Any, cast
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.tools import BaseTool
@@ -24,10 +25,17 @@ class FixedModel:
     def __init__(self) -> None:
         self.calls = 0
 
-    def invoke(self, messages: list[BaseMessage]) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
         _ = messages
         self.calls += 1
         return AIMessage(content=_GOOD)
+
+    async def astream(
+        self, messages: list[BaseMessage], callbacks: Any = None
+    ) -> AsyncIterator[str]:
+        _ = (messages, callbacks)
+        self.calls += 1
+        yield _GOOD
 
     def bind_tools(self, tools: list[BaseTool]) -> ChatModelPort:
         _ = tools
