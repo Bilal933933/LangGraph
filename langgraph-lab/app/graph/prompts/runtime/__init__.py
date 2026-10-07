@@ -10,10 +10,12 @@ from app.graph.prompts.runtime.plan import (
 from app.graph.prompts.runtime.profile import PROFILE_INFO_SYSTEM, PROFILE_SYSTEM
 from app.graph.prompts.runtime.quiz import QUIZ_AGENT_SYSTEM
 from app.graph.prompts.runtime.quiz_shape import QUIZ_SHAPE_SYSTEM
+from app.graph.prompts.runtime.request import PARSER_SYSTEM
 from app.graph.prompts.runtime.worksheet import WORKSHEET_EXTRACT_SYSTEM, WORKSHEET_SHAPE_SYSTEM
 
 __all__ = [
     "CLASSIFY_SYSTEM",
+    "PARSER_SYSTEM",
     "EXTRACT_SYSTEM",
     "PROFILE_SYSTEM",
     "PROFILE_INFO_SYSTEM",

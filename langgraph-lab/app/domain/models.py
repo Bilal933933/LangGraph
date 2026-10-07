@@ -40,6 +40,27 @@ class TeacherContext(BaseModel):
     grades: list[str] = Field(default_factory=list)
 
 
+class CanonicalRequest(BaseModel):
+    """الطلب الموحد الصغير للتوجيه فقط (Request ≠ Message).
+
+    Message = ماذا قال؟ Request = ماذا فهمنا؟
+    يحتوي ما يلزم للتوجيه فقط، لا كل تفاصيل التنفيذ
+    حتى لا يتحول Parser إلى God Object (كائن متضخم).
+    التفاصيل (عدد الأهداف، نوع النشاط) تستخرج داخل Workflow.
+    parent_request_id = سلسلة Revision (إصدار) للطلب الفعلي
+    عبر الرسائل: Request B يعدل Request A ولا ينشئ دائما جديدا.
+    """
+
+    intent: Intent
+    task: str | None = Field(default=None, min_length=1)
+    subject: str | None = Field(default=None, min_length=1)
+    grade_level: str | None = Field(default=None, min_length=1)
+    topic: str | None = Field(default=None, min_length=1)
+    missing: list[str] = Field(default_factory=list)
+    parent_request_id: str | None = Field(default=None, min_length=1)
+    schema_version: Literal["v1"] = "v1"
+
+
 class IntentResult(BaseModel):
     """نتيجة التصنيف المهيكلة من النموذج."""
 

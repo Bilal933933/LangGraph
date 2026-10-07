@@ -86,6 +86,25 @@ def make_plan_extract_node(
             fresh = structured.parse(prompt, LessonRequest)
         except Exception:
             fresh = LessonRequest()
+        # محول مؤقت: Canonical أولا عند وجوده (الموضوع والصف منه).
+        canon = state.get("canonical_request")
+        canon_topic = getattr(canon, "topic", None)
+        canon_grade = getattr(canon, "grade_level", None)
+        if isinstance(canon, dict):
+            canon_topic = canon.get("topic") or canon_topic
+            canon_grade = canon.get("grade_level") or canon_grade
+        if isinstance(canon_topic, str) and canon_topic.strip():
+            fresh = LessonRequest(
+                topic=canon_topic.strip(),
+                grade_level=fresh.grade_level,
+                minutes=fresh.minutes,
+            )
+        if isinstance(canon_grade, str) and canon_grade.strip():
+            fresh = LessonRequest(
+                topic=fresh.topic,
+                grade_level=canon_grade.strip(),
+                minutes=fresh.minutes,
+            )
         prev: object = state.get("lesson_request")
         if isinstance(prev, LessonRequest):
             prev_topic, prev_grade, prev_minutes = prev.topic, prev.grade_level, prev.minutes

@@ -6,7 +6,15 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from app.domain.models import Intent, LessonPlan, LessonRequest, QuizRequest, WorksheetRequest
+from app.domain.models import (
+    CanonicalRequest,
+    Intent,
+    LessonPlan,
+    LessonRequest,
+    QuizRequest,
+    TeacherContext,
+    WorksheetRequest,
+)
 
 
 def _append_sections(
@@ -28,21 +36,34 @@ PLAN_SECTION_KINDS: tuple[str, ...] = ("objectives", "intro", "steps", "activiti
 
 
 class ChatState(TypedDict):
-    """حالة مولد الاختبارات: رسائل + هوية + نية + طلب + نواقص.
+    """حالة الرسم: رسائل + سياق + طلب موحد + تنفيذ.
 
     add_messages = مخفّض (Reducer) يدمج الرسائل الجديدة مع القديمة
     بدل استبدالها.
 
-    قاعدة الهوية مقابل السياق: الحالة تحمل الهوية فقط (teacher_id)
-    للعقد التي تحتاجها، أما التفاصيل (اسم، بريد، تفضيلات) فتجلبها
-    العقدة المحتاجة من المستودع عند الوصول إليها، ولا تخزن في
-    اللقطة (Checkpoint) لتجنب نسخة ثانية من قاعدة البيانات.
+    الفصل المعتمد: Message (ماذا قال؟) ≠ Request (ماذا فهمنا؟)
+    ≠ State (أين وصل التنفيذ؟) ≠ Checkpoint (حفظ التنفيذ)
+    ≠ Context (ماذا يحتاج النموذج ضمن ميزانية التوكن؟).
+
+    قاعدة الهوية مقابل الفهم: teacher_id وruntime_context من
+    Authentication (المصادقة) وDB فقط، لا يستنتجهما LLM.
     أي حقل جديد يضاف كـ NotRequired فقط عند ظهور ميزة تحتاجه.
 
-    ملكية الحقول (Phase 2):
+    الشكل المستهدف:
+    - messages: سجل التنفيذ الحي.
+    - runtime_context: سياق المعلم المحمل حتميا.
+    - canonical_request: الطلب الفعلي الحالي للتوجيه.
+    - execution: retrieved_sources + plan_sections + plan_draft.
+    - response: آخر AIMessage في messages (لا حقل منفصل).
+
+    ملكية الحقول (Phase 2 + Canonical):
     - حقن Runtime كل دور: teacher_id (لا اعتماد على Checkpoint له).
-    - قرار Graph مؤقت: intent.
-    - تراكم متعدد الأدوار: quiz_request, worksheet_request, lesson_request, missing_fields.
+    - سياق محمل حتميا: runtime_context.
+    - طلب موحد صغير للتوجيه: canonical_request (يكبر عبر Revision
+      بـ parent_request_id، لا بإعادة إنشاء دائما).
+    - قرار Graph مؤقت (legacy حتى الهجرة): intent.
+    - تراكم متعدد الأدوار (legacy حتى الهجرة): quiz_request,
+      worksheet_request, lesson_request, missing_fields.
     - مؤقت يُصفّر بعد الاستخدام: pending_profile, pending_profile_name.
     - ناتج الدور: retrieved_sources.
     - Send فقط: section_task (يُصفّر في plan_merge).
@@ -52,6 +73,8 @@ class ChatState(TypedDict):
 
     messages: Annotated[list[BaseMessage], add_messages]
     teacher_id: NotRequired[int | None]
+    runtime_context: NotRequired[TeacherContext]
+    canonical_request: NotRequired[CanonicalRequest]
     intent: NotRequired[Intent]
     quiz_request: NotRequired[QuizRequest]
     worksheet_request: NotRequired[WorksheetRequest]

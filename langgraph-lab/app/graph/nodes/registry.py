@@ -22,6 +22,7 @@ from app.graph.nodes.extract import (
     confirm_ready_node,
     make_extract_node,
 )
+from app.graph.nodes.parse import make_parse_request_node, validate_request_node
 from app.graph.nodes.plan import (
     make_plan_clarification_node,
     make_plan_extract_node,
@@ -65,6 +66,8 @@ def core_nodes(
     """
     nodes: dict[str, Callable[..., Any]] = {
         "classify": make_classify_node(structured),
+        "parse_request": make_parse_request_node(structured),
+        "validate_request": validate_request_node,
         "greeting": make_greeting_node(teacher_directory),
         "answer": make_answer_node(model, knowledge),
         "decline": make_decline_node(),

@@ -16,6 +16,7 @@ from app.graph.edges.loop import route_after_quiz_agent
 from app.graph.edges.plan import route_after_plan_extract
 from app.graph.edges.plan.worksheet import route_after_worksheet_extract
 from app.graph.edges.profile import route_after_profile_extract
+from app.graph.edges.request import route_by_request
 from app.graph.nodes.plan import plan_dispatch
 
 
@@ -52,6 +53,19 @@ def core_send_routes() -> list[SendRoute]:
 def core_conditional_routes() -> list[ConditionalRoute]:
     """موجهات النواة الحالية، مرتبة حسب التنفيذ."""
     return [
+        ConditionalRoute(
+            source="validate_request",
+            router=route_by_request,
+            targets={
+                "greeting": "greeting",
+                "answer": "answer",
+                "decline": "decline",
+                "extract": "extract",
+                "worksheet_extract": "worksheet_extract",
+                "plan_extract": "plan_extract",
+                "extract_profile": "extract_profile",
+            },
+        ),
         ConditionalRoute(
             source="classify",
             router=route_by_intent,
@@ -115,7 +129,8 @@ def core_static_edges() -> list[StaticEdge]:
         StaticEdge(source="__start__", target="load_profile"),
         StaticEdge(source="load_profile", target="extract_profile_info"),
         StaticEdge(source="extract_profile_info", target="apply_profile"),
-        StaticEdge(source="apply_profile", target="classify"),
+        StaticEdge(source="apply_profile", target="parse_request"),
+        StaticEdge(source="parse_request", target="validate_request"),
         StaticEdge(source="confirm_ready", target="quiz_agent"),
         StaticEdge(source="quiz_tools", target="quiz_agent"),
         StaticEdge(source="worksheet_retrieve", target="worksheet_write"),

@@ -59,6 +59,29 @@ def make_worksheet_extract_node(
             fresh = structured.parse(prompt, WorksheetRequest)
         except Exception:
             fresh = WorksheetRequest()
+        # محول مؤقت: Canonical أولا عند وجوده.
+        canon = state.get("canonical_request")
+        canon_topic = getattr(canon, "topic", None)
+        canon_grade = getattr(canon, "grade_level", None)
+        if isinstance(canon, dict):
+            canon_topic = canon.get("topic") or canon_topic
+            canon_grade = canon.get("grade_level") or canon_grade
+        if isinstance(canon_topic, str) and canon_topic.strip():
+            fresh = WorksheetRequest(
+                kind=fresh.kind,
+                topic=canon_topic.strip(),
+                grade_level=fresh.grade_level,
+                num_items=fresh.num_items,
+                minutes=fresh.minutes,
+            )
+        if isinstance(canon_grade, str) and canon_grade.strip():
+            fresh = WorksheetRequest(
+                kind=fresh.kind,
+                topic=fresh.topic,
+                grade_level=canon_grade.strip(),
+                num_items=fresh.num_items,
+                minutes=fresh.minutes,
+            )
         prev = _coerce_request(state.get("worksheet_request"))
         kind = fresh.kind or (prev.kind if prev else None) or "worksheet"
         topic = fresh.topic or (prev.topic if prev else None)

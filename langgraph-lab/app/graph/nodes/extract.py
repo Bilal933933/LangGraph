@@ -33,6 +33,27 @@ def make_extract_node(
             fresh = structured.parse(prompt, QuizRequest)
         except Exception:
             fresh = QuizRequest()
+        # محول مؤقت: Canonical مركز التوجيه، والقيم منه أولا عند وجوده.
+        canon = state.get("canonical_request")
+        canon_topic = getattr(canon, "topic", None)
+        canon_grade = getattr(canon, "grade_level", None)
+        if isinstance(canon, dict):
+            canon_topic = canon.get("topic") or canon_topic
+            canon_grade = canon.get("grade_level") or canon_grade
+        if isinstance(canon_topic, str) and canon_topic.strip():
+            fresh = QuizRequest(
+                topic=canon_topic.strip(),
+                grade_level=fresh.grade_level,
+                num_questions=fresh.num_questions,
+                question_types=list(fresh.question_types or []),
+            )
+        if isinstance(canon_grade, str) and canon_grade.strip():
+            fresh = QuizRequest(
+                topic=fresh.topic,
+                grade_level=canon_grade.strip(),
+                num_questions=fresh.num_questions,
+                question_types=list(fresh.question_types or []),
+            )
         prev: object = state.get("quiz_request")
         if isinstance(prev, QuizRequest):
             prev_topic, prev_grade = prev.topic, prev.grade_level
