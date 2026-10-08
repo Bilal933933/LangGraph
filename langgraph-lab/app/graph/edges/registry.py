@@ -11,7 +11,6 @@ from langgraph.types import Send
 
 from app.domain.state import ChatState
 from app.graph.edges.extract import route_after_extract
-from app.graph.edges.intent import route_by_intent
 from app.graph.edges.loop import route_after_quiz_agent
 from app.graph.edges.plan import route_after_plan_extract
 from app.graph.edges.plan.worksheet import route_after_worksheet_extract
@@ -57,20 +56,6 @@ def core_conditional_routes() -> list[ConditionalRoute]:
             source="validate_request",
             router=route_by_request,
             targets={
-                "greeting": "greeting",
-                "answer": "answer",
-                "decline": "decline",
-                "extract": "extract",
-                "worksheet_extract": "worksheet_extract",
-                "plan_extract": "plan_extract",
-                "extract_profile": "extract_profile",
-            },
-        ),
-        ConditionalRoute(
-            source="classify",
-            router=route_by_intent,
-            targets={
-                "greeting": "greeting",
                 "answer": "answer",
                 "decline": "decline",
                 "extract": "extract",
@@ -139,7 +124,6 @@ def core_static_edges() -> list[StaticEdge]:
         StaticEdge(source="plan_section", target="plan_merge"),
         StaticEdge(source="plan_merge", target="__end__"),
         StaticEdge(source="plan_ask", target="__end__"),
-        StaticEdge(source="greeting", target="__end__"),
         StaticEdge(source="answer", target="__end__"),
         StaticEdge(source="decline", target="__end__"),
         StaticEdge(source="ask_clarification", target="__end__"),

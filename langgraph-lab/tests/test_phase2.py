@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.domain.models import Intent, IntentResult, QuizRequest
 from app.domain.ports import ChatModelPort
 from app.graph.builder import build_graph
-from app.graph.edges import route_after_extract, route_by_intent
+from app.graph.edges import route_after_extract, route_by_request
 from app.services.chat_service import ChatService
 
 T = TypeVar("T", bound=BaseModel)
@@ -153,12 +153,12 @@ def test_missing_fields_asks_clarification() -> None:
     assert "المستوى الدراسي" in reply
 
 
-def test_classify_retries_then_succeeds() -> None:
+def test_parse_retries_then_succeeds() -> None:
     service = ChatService(build_graph(FakeChat(), FakeStructuredFailOnce(), []))
     assert service.handle_message("مرحبا") == "fake-reply-to-2-messages"
 
 
-def test_classify_falls_back_to_general() -> None:
+def test_parse_falls_back_to_general() -> None:
     chat = FakeChat()
     service = ChatService(build_graph(chat, FakeStructuredAlwaysFail(), []))
     assert service.handle_message("???") == "fake-reply-to-1-messages"
@@ -166,9 +166,9 @@ def test_classify_falls_back_to_general() -> None:
 
 
 def test_routes() -> None:
-    assert route_by_intent({"messages": [], "intent": "greeting"}) == "answer"
-    assert route_by_intent({"messages": [], "intent": "general_question"}) == "answer"
-    assert route_by_intent({"messages": [], "intent": "unsupported"}) == "decline"
-    assert route_by_intent({"messages": [], "intent": "generate_quiz"}) == "extract"
+    assert route_by_request({"messages": [], "intent": "greeting"}) == "answer"
+    assert route_by_request({"messages": [], "intent": "general_question"}) == "answer"
+    assert route_by_request({"messages": [], "intent": "unsupported"}) == "decline"
+    assert route_by_request({"messages": [], "intent": "generate_quiz"}) == "extract"
     assert route_after_extract({"messages": [], "missing_fields": ["topic"]}) == "ask_clarification"
     assert route_after_extract({"messages": [], "missing_fields": []}) == "confirm_ready"

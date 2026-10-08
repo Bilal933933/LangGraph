@@ -2,14 +2,11 @@
 
 from typing import Literal
 
-from langchain_core.messages import AIMessage, BaseMessage
-
 from app.core.trace import get_logger
 from app.domain.models import AMBIGUOUS_INTENTS, CanonicalRequest
 from app.domain.state import ChatState
 
 RequestTarget = Literal[
-    "greeting",
     "answer",
     "decline",
     "extract",
@@ -51,10 +48,6 @@ def _resume_incomplete(state: ChatState) -> RequestTarget | None:
         return "worksheet_extract"
     # بلا طلب فرعي قديم: الناقص نفسه يحدد الفرع عبر النية الأصلية.
     return None
-
-
-def _has_prior_ai(messages: list[BaseMessage]) -> bool:
-    return any(isinstance(m, AIMessage) for m in messages)
 
 
 def route_by_request(state: ChatState) -> RequestTarget:

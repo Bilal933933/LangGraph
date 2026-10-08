@@ -26,7 +26,7 @@ class ChatState(TypedDict):
 |-------|--------|--------|--------|
 | `messages` | كل عقدة تضيف رسالتها + `ChatService` يحقن `HumanMessage` | المصنف والنموذج والرد النهائي | `add_messages` يدمج بدل الاستبدال |
 | `teacher_id` | `ChatService` / `conversation_service` من المصادقة | `load_profile`, `apply_profile`, `save_profile` | استبدال |
-| `intent` | `classify` | `route_by_intent` | استبدال |
+| `intent` | `parse_request` + `validate_request` | `route_by_request` | استبدال |
 | `quiz_request` | `extract` | `route_after_extract`, `confirm_ready` | استبدال |
 | `worksheet_request` | `worksheet_extract` (يدمج مع السابق) | `worksheet_retrieve`, `worksheet_write`, `route_after_worksheet_extract` | استبدال |
 | `lesson_request` | `plan_extract` (يدمج مع السابق) | `plan_retrieve`, `plan_section`, `plan_merge` | استبدال |

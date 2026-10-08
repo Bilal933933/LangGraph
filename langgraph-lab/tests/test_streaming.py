@@ -37,7 +37,7 @@ def test_stage_events_then_done() -> None:
     async def _run() -> list[dict[str, object]]:
         graph = FakeStreamGraph(
             [
-                ("updates", {"classify": {"intent": "greeting"}}),
+                ("updates", {"validate_request": {"intent": "greeting"}}),
                 ("updates", {"answer": {"messages": []}}),
                 ("values", _final_state()),
             ]
@@ -46,7 +46,7 @@ def test_stage_events_then_done() -> None:
 
     events = _run_sync(_run())
     assert [e["type"] for e in events] == ["stage", "stage", "done"]
-    assert events[0]["node"] == "classify"
+    assert events[0]["node"] == "validate_request"
     assert events[1]["node"] == "answer"
     assert events[2]["state"] == _final_state()
 

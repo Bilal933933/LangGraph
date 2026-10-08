@@ -12,10 +12,10 @@ import pytest
 from langchain_core.messages import BaseMessage, HumanMessage
 from pydantic import BaseModel
 
-from app.domain.models import DEFAULT_INTENT, INTENT_VALUES, Intent, IntentResult
+from app.domain.models import DEFAULT_INTENT, INTENT_VALUES, CanonicalRequest, Intent
 from app.domain.state import ChatState
-from app.graph.edges.intent import RouteTarget, route_by_intent
-from app.graph.nodes.classify import make_classify_node
+from app.graph.edges.request import RequestTarget, route_by_request
+from app.graph.nodes.parse import make_parse_request_node
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -36,13 +36,12 @@ class ScriptedStructured:
         self._mapping = mapping
 
     def parse(self, messages: list[BaseMessage], schema: type[T]) -> T:
-        assert schema is IntentResult
         last = ""
         for message in reversed(messages):
             if isinstance(message, HumanMessage) and str(message.content).strip():
                 last = str(message.content).strip()
                 break
-        return cast("T", IntentResult(intent=cast("Intent", self._mapping[last])))
+        return cast("T", CanonicalRequest(intent=cast("Intent", self._mapping[last.split(" الطلب السابق:")[0]])))
 
 
 class AlwaysFailStructured:
@@ -58,21 +57,22 @@ def test_golden_intents_are_known() -> None:
         assert row["expected_intent"] in INTENT_VALUES, row
 
 
-def test_classify_node_returns_port_intent_verbatim() -> None:
+def test_parse_node_returns_port_intent_verbatim() -> None:
     mapping = {row["input"]: row["expected_intent"] for row in _rows()}
-    node = make_classify_node(ScriptedStructured(mapping))
+    node = make_parse_request_node(ScriptedStructured(mapping))
     for row in _rows():
         state: ChatState = {"messages": [HumanMessage(content=row["input"])]}
-        assert node(state) == {"intent": row["expected_intent"]}
+        result = node(state)
+        assert result["intent"] == row["expected_intent"]
 
 
-def test_classify_node_falls_back_on_failure() -> None:
-    node = make_classify_node(AlwaysFailStructured())
+def test_parse_node_falls_back_on_failure() -> None:
+    node = make_parse_request_node(AlwaysFailStructured())
     state: ChatState = {"messages": [HumanMessage(content="اختبار")]}
-    assert node(state) == {"intent": DEFAULT_INTENT}
+    assert node(state)["intent"] == DEFAULT_INTENT
 
 
-_EXPECTED_ROUTES: dict[str, RouteTarget] = {
+_EXPECTED_ROUTES: dict[str, RequestTarget] = {
     "greeting": "answer",
     "general_question": "answer",
     "generate_quiz": "extract",
@@ -86,7 +86,7 @@ _EXPECTED_ROUTES: dict[str, RouteTarget] = {
 def test_golden_intents_route_to_valid_nodes() -> None:
     for row in _rows():
         state: ChatState = {"messages": [], "intent": cast("Intent", row["expected_intent"])}
-        assert route_by_intent(state) == _EXPECTED_ROUTES[row["expected_intent"]]
+        assert route_by_request(state) == _EXPECTED_ROUTES[row["expected_intent"]]
 
 
 @pytest.mark.live
@@ -101,7 +101,7 @@ def test_classification_accuracy_live() -> None:
     key = settings.google_api_key.get_secret_value().strip()
     if not key:
         pytest.skip("no GOOGLE_API_KEY")
-    node = make_classify_node(GeminiStructuredModel(key, settings.gemini_model))
+    node = make_parse_request_node(GeminiStructuredModel(key, settings.gemini_model))
     hits = 0
     for row in _rows():
         state: ChatState = {"messages": [HumanMessage(content=row["input"])]}

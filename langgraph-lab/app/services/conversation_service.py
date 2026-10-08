@@ -174,20 +174,6 @@ async def stream_message_detail(
             collector.input_tokens,
             collector.output_tokens,
         )
-        if event.get("type") != "done":
-            yield event
-            continue
-        state = event.get("state")
-        assert isinstance(state, dict)
-        messages = state["messages"]
-        assert isinstance(messages, list)
-        last = messages[-1]
-        assert isinstance(last, BaseMessage)
-        reply = message_text(last.content)
-        sources = state.get("retrieved_sources", [])
-        if not isinstance(sources, list):
-            sources = []
-        clarification = build_plan_clarification(cast("ChatState", state))
         session.add(Message(conversation_id=conv.id, role="assistant", content=reply))
         if not conv.title:
             conv.title = cleaned[:TITLE_LEN]

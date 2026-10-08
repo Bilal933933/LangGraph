@@ -1,7 +1,6 @@
 "use client";
 
 const STAGE_LABELS: Record<string, string> = {
-  classify: "يفهم طلبك…",
   extract: "يستخرج التفاصيل…",
   plan_extract: "يستخرج تفاصيل الخطة…",
   retrieve: "يبحث في الكتب…",

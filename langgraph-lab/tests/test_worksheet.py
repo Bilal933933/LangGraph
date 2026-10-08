@@ -11,7 +11,7 @@ from app.evals.worksheet_checks import (
     has_answer_key,
     has_differentiation,
 )
-from app.graph.edges.intent import route_by_intent
+from app.graph.edges.request import route_by_request
 from app.graph.edges.plan.worksheet import route_after_worksheet_extract
 from app.graph.nodes.worksheet import (
     make_worksheet_ask_node,
@@ -173,8 +173,8 @@ def test_checks_evaluate_text() -> None:
 
 
 def test_intent_routes_worksheet() -> None:
-    assert route_by_intent({"messages": [], "intent": "generate_worksheet"}) == "worksheet_extract"  # type: ignore[arg-type]
-    resumed = route_by_intent(  # type: ignore[arg-type]
+    assert route_by_request({"messages": [], "intent": "generate_worksheet"}) == "worksheet_extract"  # type: ignore[arg-type]
+    resumed = route_by_request(  # type: ignore[arg-type]
         {
             "messages": [],
             "intent": "greeting",
@@ -183,7 +183,7 @@ def test_intent_routes_worksheet() -> None:
         }
     )
     assert resumed == "worksheet_extract"
-    both = route_by_intent(  # type: ignore[arg-type]
+    both = route_by_request(  # type: ignore[arg-type]
         {
             "messages": [],
             "intent": "greeting",

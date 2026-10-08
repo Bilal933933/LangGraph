@@ -1,4 +1,4 @@
-"""عقد الردود (تحية وإجابة ورفض)."""
+"""عقد الردود (إجابة ورفض + مسار تحية المحادثة)."""
 
 from collections.abc import Callable, Coroutine
 from typing import Any
@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.core.config import get_settings
 from app.core.trace import get_logger, preview, stage
-from app.domain.ports import ChatModelPort, KnowledgeSearchPort, TeacherDirectoryPort
+from app.domain.ports import ChatModelPort, KnowledgeSearchPort
 from app.domain.state import ChatState
 from app.graph.content import message_text
 from app.graph.nodes.profile import profile_ask_instruction
@@ -22,36 +22,11 @@ from app.graph.prompts.runtime.greeting import GREETING_SYSTEM
 from app.graph.window import select_window
 
 
-def make_greeting_node(
-    directory: TeacherDirectoryPort | None = None,
-) -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
-    """عقدة التحية القديمة (Legacy): محفوظة للتوافق الخلفي فقط.
-
-    الموجه الحالي يرسل كل greeting إلى answer ليرد النموذج
-    مع نافذة السياق. لا تحذفها حتى لا ينكسر تسجيل العقد.
-    """
-
-    def _greet(state: ChatState) -> dict[str, list[BaseMessage]]:
-        teacher_id = state.get("teacher_id")
-        name: str | None = None
-        if directory is not None and isinstance(teacher_id, int):
-            try:
-                name = directory.get_name(teacher_id)
-            except Exception:
-                name = None
-        if name and name.strip():
-            text = f"أهلاً {name.strip()}! كيف أقدر أساعدك اليوم؟"
-            return {"messages": [AIMessage(content=text)]}
-        return {"messages": [AIMessage(content="أهلاً بك! كيف أقدر أساعدك اليوم؟")]}
-
-    return _greet
-
-
 def _is_greeting(state: ChatState) -> bool:
     """الحالة ← True عند نية تحية فقط (نظام محادثة لا رد منفصل)."""
     if state.get("intent") == "greeting":
         return True
-    raw = state.get("canonical_request")
+    raw: object = state.get("canonical_request")
     intent = getattr(raw, "intent", None)
     if isinstance(intent, str) and intent == "greeting":
         return True

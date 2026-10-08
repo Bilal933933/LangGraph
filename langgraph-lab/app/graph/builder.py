@@ -53,7 +53,7 @@ def build_graph(
     profile_store: TeacherProfilePort | None = None,
     knowledge: KnowledgeSearchPort | None = None,
 ) -> Any:
-    """START ← [load_profile → extract_profile_info → apply_profile → classify] ← شرطي → ....
+    """START ← [load_profile → extract_profile_info → apply_profile → parse_request → validate_request] ← شرطي → ....
 
     النهايات عادية ← END. سؤال الباقي تعليم في موجه النموذج (answer وquiz_agent)
     لا عقدة، واستخراج update_profile الصريح ما زال يعمل كما كان.

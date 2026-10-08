@@ -15,8 +15,7 @@ from app.domain.ports import (
     TeacherProfilePort,
     TeacherProfileWriterPort,
 )
-from app.graph.nodes.answer import make_answer_node, make_decline_node, make_greeting_node
-from app.graph.nodes.classify import make_classify_node
+from app.graph.nodes.answer import make_answer_node, make_decline_node
 from app.graph.nodes.extract import (
     ask_clarification_node,
     confirm_ready_node,
@@ -65,10 +64,8 @@ def core_nodes(
     تعليم في موجه النموذج لا رسالة نظام).
     """
     nodes: dict[str, Callable[..., Any]] = {
-        "classify": make_classify_node(structured),
         "parse_request": make_parse_request_node(structured),
         "validate_request": validate_request_node,
-        "greeting": make_greeting_node(teacher_directory),
         "answer": make_answer_node(model, knowledge),
         "decline": make_decline_node(),
         "extract": make_extract_node(structured),

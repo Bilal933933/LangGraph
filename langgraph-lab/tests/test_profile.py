@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.domain.models import Intent, IntentResult, ProfileInfo, ProfileName
 from app.domain.ports import ChatModelPort
 from app.graph.builder import build_graph
-from app.graph.edges import route_after_profile_extract, route_by_intent
+from app.graph.edges import route_after_profile_extract, route_by_request
 from app.services.chat_service import ChatService
 
 T = TypeVar("T", bound=BaseModel)
@@ -93,7 +93,7 @@ def test_update_profile_guest_needs_login() -> None:
 
 def test_profile_routes() -> None:
     assert (
-        route_by_intent({"messages": [], "intent": "update_profile"}) == "extract_profile"
+        route_by_request({"messages": [], "intent": "update_profile"}) == "extract_profile"
     )
     assert (
         route_after_profile_extract({"messages": [], "pending_profile_name": "أحمد"})
