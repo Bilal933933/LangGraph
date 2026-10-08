@@ -3,10 +3,15 @@
 الفصل: جداول التطبيق (Teacher/Conversation/Message) ننشئها نحن عبر
 SQLAlchemy، وجداول اللقطات (checkpoints/checkpoint_writes/checkpoint_blobs)
 ينشئها LangGraph عبر `PostgresSaver.setup()` ولا نلمسها يدويًا.
+
+قاعدة الإصدارات الحديثة: مسارات الرسم عندنا غير متزامنة دائما
+(`ainvoke/astream`)، لذلك حافظ Postgres يجب أن يكون `AsyncPostgresSaver`
+الذي يملك `aget_tuple/aput`. النسخة المتزامنة `PostgresSaver` ترفع
+`NotImplementedError` داخل `AsyncPregelLoop` وتكسر كل الرسائل.
 """
 
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from functools import lru_cache
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -26,11 +31,25 @@ def create_checkpointer() -> InMemorySaver:
 
 @contextmanager
 def postgres_checkpointer_cm(database_url: str) -> Iterator[object]:
-    """سياق PostgresSaver حي: يُبقي اتصالًا واحدًا مفتوحًا طوال عمر التطبيق."""
+    """سياق PostgresSaver المتزامن (legacy: لا يصلح لمسارات ainvoke/astream).
+
+    أبقيناه للتوافق الخلفي فقط. كود التطبيق يستخدم
+    `async_postgres_checkpointer_cm` أدناه.
+    """
     from langgraph.checkpoint.postgres import PostgresSaver
 
     normalized = normalize_postgres_url(database_url)
     with PostgresSaver.from_conn_string(normalized) as checkpointer:
+        yield checkpointer
+
+
+@asynccontextmanager
+async def async_postgres_checkpointer_cm(database_url: str) -> AsyncIterator[object]:
+    """سياق AsyncPostgresSaver حي: اتصال واحد لعمر العملية لمسارات async."""
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    normalized = normalize_postgres_url(database_url)
+    async with AsyncPostgresSaver.from_conn_string(normalized) as checkpointer:
         yield checkpointer
 
 

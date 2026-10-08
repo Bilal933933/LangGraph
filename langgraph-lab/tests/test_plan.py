@@ -8,7 +8,8 @@ from langchain_core.tools import BaseTool
 
 from app.domain.models import LessonPlan, LessonRequest
 from app.domain.ports import ChatModelPort
-from app.graph.nodes.plan import is_evasive, make_plan_merge_node
+from app.graph.content import message_text
+from app.graph.nodes.plan import is_evasive, make_plan_extract_node, make_plan_merge_node
 
 _EVASIVE = "يبدو أنك نسيت تحديد الموضوع! زودني بالموضوع وسأبدأ فوراً في انتظارك."
 
@@ -85,3 +86,27 @@ def test_merge_without_model_keeps_sections() -> None:
     }
     result = merge(state)  # type: ignore[arg-type]
     assert cast("LessonPlan", result["plan_draft"]).minutes == 45
+
+
+class _MinutesOnlyStructured:
+    """منفذ مهيكل وهمي: يستخرج الدقائق من آخر رسالة بشرية فقط."""
+
+    def parse(self, messages: list[BaseMessage], schema: type[LessonRequest]) -> LessonRequest:
+        _ = schema
+        last = message_text(messages[-1].content) if messages else ""
+        return LessonRequest(minutes=45 if "45" in last else None)
+
+
+def test_plan_extract_completes_minutes_from_short_reply() -> None:
+    from langchain_core.messages import HumanMessage
+
+    extract = make_plan_extract_node(_MinutesOnlyStructured())  # type: ignore[arg-type]
+    state = {
+        "messages": [HumanMessage(content="45 دقيقة")],
+        "lesson_request": LessonRequest(topic="الجمع", grade_level="الثالث"),
+    }
+    result = extract(state)  # type: ignore[arg-type]
+    req = cast("LessonRequest", result["lesson_request"])
+    assert (req.topic, req.grade_level, req.minutes) == ("الجمع", "الثالث", 45)
+    assert result["missing_fields"] == []
+    assert result["plan_sections"] == []

@@ -22,11 +22,11 @@ from app.services import conversation_service as service
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
-def get_conversation_graph() -> Any:
+async def get_conversation_graph() -> Any:
     """رسم المحادثات: مفوض للمصنع الوحيد (يُستبدل في الاختبارات)."""
     from app.runtime.factory import get_shared_graph
 
-    return get_shared_graph()
+    return await get_shared_graph()
 
 
 def _to_out(conv: Conversation) -> ConversationOut:
@@ -89,7 +89,7 @@ def delete_conversation(
 
 
 @router.post("/{conversation_id}/messages", response_model=SendMessageOut)
-def post_message(
+async def post_message(
     conversation_id: int,
     payload: SendMessageIn,
     user: Annotated[User, Depends(get_current_user)],
@@ -100,7 +100,9 @@ def post_message(
     """يرسل رسالة ضمن محادثتي: ملكية ← حفظ ← رسم ← حفظ الرد مع مصادره."""
     from app.api.schemas import ClarificationOut, SourceOut
 
-    detail = service.send_message_detail(session, graph, user, conversation_id, payload.message)
+    detail = await service.send_message_detail(
+        session, graph, user, conversation_id, payload.message
+    )
     reply = detail["reply"]
     assert isinstance(reply, str)
     sources = detail["sources"]

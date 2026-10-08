@@ -1,6 +1,6 @@
 import type { AuthUser, LoginInput, RegisterInput, TokenPair } from "../types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:5003";
 
 export async function registerApi(input: RegisterInput): Promise<TokenPair> {
   return postJson<TokenPair>("/auth/register", input, 201);

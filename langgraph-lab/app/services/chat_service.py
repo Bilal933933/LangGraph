@@ -1,5 +1,6 @@
 """منطق التطبيق (Use Case الوحيد)."""
 
+import hashlib
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.usage import UsageCollector, record_usage
 from app.graph.content import message_text
 from app.graph.nodes.plan import build_plan_clarification
-from app.graph.streaming import invoke_sync, stream_run
+from app.graph.streaming import stream_run
 
 
 class ChatService:
@@ -44,19 +45,40 @@ class ChatService:
         except Exception:
             return None, None
 
+    @staticmethod
+    def guest_thread_id(client_ip: str, raw_thread_id: str) -> str:
+        """خيط الضيف ← نطاق معزول لكل IP (best-effort لا أمني).
+
+        المسار المسجل يشتق `t{user}:c{conv}` بعد فحص الملكية.
+        مسار الضيف بلا هوية: `request.client.host` غير موثوق خلف
+        proxy (قد يتساوى للجميع) — العزل هنا ضد التصادم العرضي فقط.
+        البصمة `sha256(ip|raw)` تمنع تصادم القص، والطول ≤64 لحد Schema.
+        """
+        raw = (raw_thread_id or "").strip() or "default"
+        ip = (client_ip or "").strip() or "unknown"
+        digest = hashlib.sha256(f"{ip}\n{raw}".encode("utf-8")).hexdigest()[:12]
+        safe_ip = ip.replace(":", "-")[:32]
+        return f"g:{safe_ip}:{digest}"[:64]
+
     def handle_message(
         self, message: str, thread_id: str = "default", teacher_id: int | None = None
     ) -> str:
         """نص الدخل ← نص الرد النهائي. thread_id يعزل محادثة عن أخرى.
 
+        غلاف متزامن للاختبارات والسكربتات (بلا حلقة حدث).
+        داخل نقاط API غير المتزامنة استخدم `handle_message_detail` مباشرة.
         teacher_id هوية داخلية من الطبقة الخارجية (لاحقا من المصادقة)،
         وليست من جسم الطلب. None = ضيف بدون هوية.
         """
-        reply = self.handle_message_detail(message, thread_id, teacher_id)["reply"]
+        import asyncio
+
+        reply = asyncio.run(
+            self.handle_message_detail(message, thread_id, teacher_id)
+        )["reply"]
         assert isinstance(reply, str)
         return reply
 
-    def handle_message_detail(
+    async def handle_message_detail(
         self,
         message: str,
         thread_id: str = "default",
@@ -70,7 +92,8 @@ class ChatService:
         if session is not None and usage_subject is not None:
             collector = UsageCollector()
             config = {**config, "callbacks": [collector]}
-        result = invoke_sync(self._graph, payload, config)
+        result = await self._graph.ainvoke(payload, config)
+        assert isinstance(result, dict)
         detail = self._detail_from_state(result)
         if collector is not None and session is not None and usage_subject is not None:
             record_usage(session, usage_subject, collector.input_tokens, collector.output_tokens)

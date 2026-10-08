@@ -13,9 +13,21 @@ CONTEXT_WINDOW_MESSAGES = 20
 def select_window(
     messages: list[BaseMessage], limit: int = CONTEXT_WINDOW_MESSAGES
 ) -> list[BaseMessage]:
-    """آخر limit رسالة ← نافذة النموذج. فارغ أو أقل ← الكل."""
+    """آخر limit رسالة ← نافذة النموذج. فارغ أو أقل ← الكل.
+
+    أمان Gemini: تُسقط القائدة غير البشرية حتى أول human حتى لا
+    تبدأ النافذة بـ ai/tool ولا تُيتّم ToolMessage عن AIMessage(tool_calls).
+    """
     if limit <= 0:
         return []
     if len(messages) <= limit:
-        return list(messages)
-    return list(messages[-limit:])
+        window = list(messages)
+    else:
+        start = len(messages) - limit
+        while start > 0 and getattr(messages[start], "type", None) != "human":
+            start -= 1
+        window = list(messages[start : start + limit])
+    for i, message in enumerate(window):
+        if getattr(message, "type", None) == "human":
+            return window[i:]
+    return []

@@ -1,6 +1,6 @@
 """المسارات (Routes = نقاط استقبال HTTP بدون منطق)."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
@@ -40,19 +40,19 @@ def health_db() -> dict[str, str]:
 
 
 @router.post("/chat", response_model=ChatResponse)
-def post_chat(
+async def post_chat(
     payload: ChatRequest,
     request: Request,
     session: Annotated[Session, Depends(get_db)],
     _: Annotated[None, Depends(limit_guest_chat)],
+    chat: Annotated[Any, Depends(get_chat_service)],
 ) -> ChatResponse:
     """يستقبل رسالة ← يعيد رد Gemini عبر الرسم مع مصادره واستيضاح الديلوج."""
     from app.api.schemas import ClarificationOut, SourceOut
 
-    service = get_chat_service()
-    detail = service.handle_message_detail(
+    detail = await chat.handle_message_detail(
         payload.message,
-        thread_id=payload.thread_id,
+        thread_id=chat.guest_thread_id(client_ip(request), payload.thread_id),
         session=session,
         usage_subject=subject_for_ip(client_ip(request)),
     )

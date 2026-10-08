@@ -15,7 +15,6 @@ from app.db.models.teacher import Teacher
 from app.domain.state import ChatState
 from app.graph.content import message_text
 from app.graph.nodes.plan import build_plan_clarification
-from app.graph.streaming import invoke_sync
 from app.services.chat_service import ChatService
 
 #: طول عنوان المحادثة التلقائي من أول رسالة.
@@ -80,13 +79,20 @@ def delete_conversation(session: Session, user: User, conversation_id: int) -> N
 
 
 def send_message(session: Session, graph: Any, user: User, conversation_id: int, text: str) -> str:
-    """ملكية ← حفظ user ← invoke عبر thread المالك ← حفظ assistant ← تحديث العنوان."""
-    reply = send_message_detail(session, graph, user, conversation_id, text)["reply"]
+    """ملكية ← حفظ user ← invoke عبر thread المالك ← حفظ assistant ← تحديث العنوان.
+
+    غلاف متزامن للتوافق الخلفي (بلا حلقة حدث).
+    """
+    import asyncio
+
+    reply = asyncio.run(send_message_detail(session, graph, user, conversation_id, text))[
+        "reply"
+    ]
     assert isinstance(reply, str)
     return reply
 
 
-def send_message_detail(
+async def send_message_detail(
     session: Session, graph: Any, user: User, conversation_id: int, text: str
 ) -> dict[str, object]:
     """مثل send_message مع {reply, sources, clarification} للديلوج عند النواقص."""
@@ -99,8 +105,7 @@ def send_message_detail(
     payload: dict[str, Any] = {"messages": [HumanMessage(content=cleaned)]}
     payload["teacher_id"] = conv.teacher_id
     collector = UsageCollector()
-    result: dict[str, Any] = invoke_sync(
-        graph,
+    result: dict[str, Any] = await graph.ainvoke(
         payload,
         {
             "configurable": {"thread_id": thread},

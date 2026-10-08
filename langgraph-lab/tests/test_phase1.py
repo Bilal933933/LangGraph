@@ -53,25 +53,20 @@ def test_graph_runs_two_nodes_in_order() -> None:
 
 def test_post_chat_uses_service() -> None:
     graph = build_graph(FakeModel(), FakeStructuredGeneral(), [])
-    routes.get_chat_service.cache_clear()
     app = create_app()
     app.dependency_overrides = {}
-    # حقن خدمة وهمية عبر التخزين المؤقت
-    routes.get_chat_service.cache_clear()
-    original = routes.get_chat_service
 
-    def _fake() -> ChatService:
+    async def _fake() -> ChatService:
         return ChatService(graph)
 
-    routes.get_chat_service = _fake  # type: ignore[assignment]
+    app.dependency_overrides[routes.get_chat_service] = _fake
     try:
         client = TestClient(app, raise_server_exceptions=False)
         res = client.post("/chat", json={"message": "حدثني عن إدارة الحالة"})
         assert res.status_code == 200, res.text
         assert res.json()["reply"] == "fake-reply-to-1-messages"
     finally:
-        routes.get_chat_service = original
-        routes.get_chat_service.cache_clear()
+        app.dependency_overrides = {}
 
 
 def test_health() -> None:

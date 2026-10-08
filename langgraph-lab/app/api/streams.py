@@ -42,7 +42,7 @@ async def post_chat_stream(
     return await _sse(
         chat.stream_message_detail(
             payload.message,
-            payload.thread_id,
+            chat.guest_thread_id(client_ip(request), payload.thread_id),
             session=session,
             usage_subject=subject_for_ip(client_ip(request)),
         )

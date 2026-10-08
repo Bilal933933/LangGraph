@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_dir: str = "logs"
     cors_origins: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
+        default_factory=lambda: ["http://localhost:3006", "http://127.0.0.1:3006"]
     )
     plan_retrieval_limit: int = 20
     answer_retrieval_limit: int = 6

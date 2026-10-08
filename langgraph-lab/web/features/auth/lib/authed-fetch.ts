@@ -3,7 +3,7 @@ import { useAuthStore } from "../store/auth-store";
 import type { TokenPair } from "../types";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:5003";
 
 /** تجديد واحد مشترك: طلبات متوازية تنتظر نفس الوعد بدل تجديد متكرر. */
 let inflightRefresh: Promise<TokenPair> | null = null;

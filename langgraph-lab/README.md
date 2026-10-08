@@ -24,7 +24,7 @@ pgvector)، بحث ويب اختياري، ومحادثات محفوظة في Po
 cp .env.example .env   # ثم ضع GOOGLE_API_KEY وPOSTGRES_PASSWORD وJWT_SECRET
 docker compose up -d db
 uv sync
-uv run uvicorn app.main:app --reload   # http://127.0.0.1:8000
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 5003   # http://127.0.0.1:5003
 ```
 
 الواجهة في نافذة ثانية:
@@ -32,7 +32,7 @@ uv run uvicorn app.main:app --reload   # http://127.0.0.1:8000
 ```powershell
 cd web
 npm install
-npm run dev   # http://localhost:3000 (يجب أن يكون ضمن CORS_ORIGINS)
+npm run dev   # http://127.0.0.1:3006 (يجب أن يكون ضمن CORS_ORIGINS)
 ```
 
 ترحيل صريح (اختياري — الإقلاع يرحّل تلقائياً):

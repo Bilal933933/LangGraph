@@ -8,7 +8,7 @@
 - **الخيط**: `thread_id = f"t{user_id}:c{conversation_id}"` عبر `ChatService.thread_id_for_conversation` — يعزل محادثة عن أخرى.
 - **التوقيت**: لقطة بعد كل عقدة (بعد دمج المخفضات)، والقراءة عند `invoke` بنفس `thread_id`.
 - **الحماية**: `recursion_limit = MAX_STEPS = 12` ضد الحلقات اللانهائية.
-- **الفصل**: جداول التطبيق (`Teacher/Conversation/Message`) ننشئها عبر SQLAlchemy، وجداول اللقطات (`checkpoints/checkpoint_writes/checkpoint_blobs`) ينشئها `PostgresSaver.setup()` ولا نلمسها يدويًا.
+- **الفصل**: جداول التطبيق (`Teacher/Conversation/Message`) ننشئها عبر SQLAlchemy، وجداول اللقطات (`checkpoints/checkpoint_writes/checkpoint_blobs/checkpoint_migrations`) ينشئها `PostgresSaver.setup()` ولا نلمسها يدويًا.
 
 ## الربط الحالي
 

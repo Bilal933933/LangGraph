@@ -1,7 +1,14 @@
 """نقطة دخول FastAPI."""
 
+import asyncio
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
+# psycopg غير المتزامن يرفض حلقة Windows الافتراضية (ProactorEventLoop)
+# فينهار الإقلاع عند تسخين الرسم — نفرض SelectorEventLoop على Windows فقط.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,8 +43,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ensure_knowledge_indexes(engine)
         setup_postgres_tables(database_url)
         app.state.db_engine = engine
+        # تسخين الرسم والحافظ غير المتزامن مبكرا حتى لا يدفع أول طلب ثمن التهيئة.
+        from app.runtime.factory import get_shared_graph
+
+        await get_shared_graph()
     yield
-    close_checkpointer()
+    await close_checkpointer()
     if engine is not None:
         dispose_engine(engine)
 

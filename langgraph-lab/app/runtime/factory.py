@@ -5,7 +5,6 @@
 عبر `build_default_tools()` كنقطة حقن لاحقة (المرحلة 6).
 """
 
-from functools import lru_cache
 from typing import Any
 
 from langchain_core.tools import BaseTool
@@ -13,40 +12,51 @@ from langchain_core.tools import BaseTool
 from app.core.config import Settings, get_settings
 from app.graph.builder import build_graph, create_model, create_structured
 from app.graph.checkpoints import (
+    async_postgres_checkpointer_cm,
     create_checkpointer,
-    postgres_checkpointer_cm,
 )
 from app.repositories.pg_knowledge import PgKnowledgeRepository
 from app.repositories.sql_teacher import SqlTeacherDirectory, SqlTeacherProfile
 from app.services.chat_service import ChatService
 
-#: سياق PostgresSaver الحي (اتصال واحد لعمر العملية). يُغلق عند الإيقاف.
-_POSTGRES_STACK: list[object] = []
+#: سياق AsyncPostgresSaver الحي (اتصال واحد لعمر العملية). يُغلق عند الإيقاف.
+#: الدخول لسياق غير متزامن يتطلب حلقة حدث، لذلك التهيئة والإغلاق
+#: غير متزامنين ويُستدعيان من lifespan أو أول طلب (يعمل داخل الحدث).
+_ASYNC_STACK: Any | None = None
 _POSTGRES_INSTANCE: list[object] = []
+_SHARED_GRAPH: list[object] = []
+_CHAT_SERVICE: list[object] = []
 
 
-def resolve_checkpointer() -> object:
-    """بلا DATABASE_URL ← ذاكرة مؤقتة. معه ← PostgresSaver دائم."""
-    from contextlib import ExitStack
+async def resolve_checkpointer() -> object:
+    """بلا DATABASE_URL ← ذاكرة مؤقتة. معه ← AsyncPostgresSaver دائم.
 
+    غير متزامنة لأن دخول سياق الحافظ غير المتزامن يحتاج حلقة حدث.
+    """
+    from contextlib import AsyncExitStack
+
+    global _ASYNC_STACK
     database_url = get_settings().database_url.get_secret_value().strip()
     if not database_url:
         return create_checkpointer()
     if _POSTGRES_INSTANCE:
         return _POSTGRES_INSTANCE[0]
-    stack = ExitStack()
-    instance = stack.enter_context(postgres_checkpointer_cm(database_url))
-    _POSTGRES_STACK.append(stack)
+    stack = AsyncExitStack()
+    instance = await stack.enter_async_context(async_postgres_checkpointer_cm(database_url))
+    _ASYNC_STACK = stack
     _POSTGRES_INSTANCE.append(instance)
     return instance
 
 
-def close_checkpointer() -> None:
-    """يغلق اتصال PostgresSaver عند إيقاف التطبيق."""
-    while _POSTGRES_STACK:
-        stack = _POSTGRES_STACK.pop()
-        stack.close()  # type: ignore[attr-defined]
+async def close_checkpointer() -> None:
+    """يغلق اتصال AsyncPostgresSaver عند إيقاف التطبيق."""
+    global _ASYNC_STACK
+    if _ASYNC_STACK is not None:
+        await _ASYNC_STACK.aclose()
+        _ASYNC_STACK = None
     _POSTGRES_INSTANCE.clear()
+    _SHARED_GRAPH.clear()
+    _CHAT_SERVICE.clear()
 
 
 def build_default_tools(lesson_repo: Any | None = None) -> list[BaseTool]:
@@ -130,14 +140,25 @@ def create_app_graph(settings: Settings, checkpointer: Any) -> Any:
     return graph
 
 
-@lru_cache(maxsize=1)
-def get_shared_graph() -> Any:
-    """Graph واحد مشترك لكل المسارات (يُستبدل في الاختبارات)."""
+async def get_shared_graph() -> Any:
+    """Graph واحد مشترك لكل المسارات (يُستبدل في الاختبارات).
+
+    غير متزامنة لأن الحافظ قد يحتاج دخول سياق غير متزامن.
+    """
+    if _SHARED_GRAPH:
+        return _SHARED_GRAPH[0]
     settings = get_settings()
-    return create_app_graph(settings, resolve_checkpointer())
+    graph = create_app_graph(settings, await resolve_checkpointer())
+    _SHARED_GRAPH.append(graph)
+    return graph
 
 
-@lru_cache(maxsize=1)
-def get_chat_service() -> ChatService:
+async def get_chat_service() -> ChatService:
     """يبني الخدمة مرة واحدة فوق Graph المشترك (توفير التكلفة)."""
-    return ChatService(get_shared_graph())
+    if _CHAT_SERVICE:
+        service = _CHAT_SERVICE[0]
+        assert isinstance(service, ChatService)
+        return service
+    service = ChatService(await get_shared_graph())
+    _CHAT_SERVICE.append(service)
+    return service
