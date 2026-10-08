@@ -102,6 +102,8 @@ def test_double_failure_raises() -> None:
     assert fake.calls == 2
     assert info.value.code == ErrorCode.INVALID_MODEL_OUTPUT
     assert "اختبار" in info.value.message and "حاول" in info.value.message
+    assert info.value.status == 502
+    assert info.value.details is None
 
 
 def test_quiz_agent_structured_stores_draft_and_hides() -> None:
@@ -133,7 +135,7 @@ def test_quiz_agent_history_starts_human() -> None:
     node(state)  # type: ignore[arg-type]
     history = model.seen[3:]
     assert history and history[0].type == "human"
-    assert history[-1].type == "human"
+    assert all("quiz please" not in str(m.content) for m in history)
 
 
 def test_quiz_agent_legacy_without_structured() -> None:

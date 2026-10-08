@@ -8,7 +8,10 @@ from langchain_core.messages import BaseMessage, HumanMessage
 from pydantic import BaseModel
 
 from app.core.errors import AppError, ErrorCode
+from app.core.trace import get_logger
 from app.domain.ports import StructuredOutputPort
+
+logger = get_logger(__name__)
 
 #: سقف تلميح الخطأ حتى لا يتضخم موجه الاعادة.
 _ERROR_HINT_LIMIT = 300
@@ -41,9 +44,11 @@ def parse_with_retry[T: BaseModel](
         try:
             return structured.parse(retry_prompt, schema)
         except Exception as exc:
+            hint = _hint(exc)
+            logger.warning("structured_parse_failed what=%s hint=%s", what, hint)
             raise AppError(
                 ErrorCode.INVALID_MODEL_OUTPUT,
                 f"تعذر توليد {what} صالح، حاول مجددًا.",
-                details=_hint(exc),
+                status=502,
             ) from exc
 

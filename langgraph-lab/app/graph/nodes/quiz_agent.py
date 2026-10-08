@@ -54,7 +54,8 @@ def make_quiz_agent_node(
         shape = build_quiz_shape_prompt(request, plan)
         messages = list(state["messages"])
         last_text = message_text(messages[-1].content) if messages else ""
-        history = select_window(messages, 4)
+        tail = messages[:-1] if messages and messages[-1].type == "human" else messages
+        history = select_window(tail, 4)
         prompt: list[BaseMessage] = [
             SystemMessage(content=QUIZ_AGENT_SYSTEM),
             SystemMessage(content=shape),

@@ -89,19 +89,40 @@ def test_evaluate_output() -> None:
 
 def test_total_mismatch_flagged() -> None:
     raw = _quiz_dict()
-    raw["questions"][0]["points"] = 0
-    raw["questions"][1]["points"] = 0
+    raw["questions"][0]["points"] = 30
+    raw["questions"][1]["points"] = 30
     quiz = QuizOutput.model_validate(raw)
     result = evaluate_quiz_output(quiz, 2)
-    assert result["total_points"] == 0
+    assert result["total_points"] == 60
     assert result["total_mismatch"] is True
-    assert "المجموع: 0" in render_quiz_output(quiz)
+    assert "المجموع: 60" in render_quiz_output(quiz)
+
+
+def test_missing_points_distributed_equally() -> None:
+    raw = _quiz_dict()
+    raw["questions"][0]["points"] = 0
+    raw["questions"][1]["points"] = 0
+    raw["questions"].append(
+        {
+            "type": "short_answer",
+            "stem": "STEM-3",
+            "options": [],
+            "answer_index": None,
+            "explanation": "",
+            "points": 0,
+        }
+    )
+    quiz = QuizOutput.model_validate(raw)
+    text = render_quiz_output(quiz)
+    assert "المجموع: 100" in text
+    assert "(34 درجات)" in text
+    assert "(33 درجات)" in text
 
 
 def test_option_letters_are_alif_ba_jeem_dal() -> None:
     quiz = QuizOutput.model_validate(_quiz_dict())
     text = render_quiz_output(quiz)
-    for letter in ("ا)", "ب)", "ج)", "د)"):
+    for letter in ("أ)", "ب)", "ج)", "د)"):
         assert letter in text
     assert "ة)" not in text
 

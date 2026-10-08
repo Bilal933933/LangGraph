@@ -10,8 +10,8 @@ TYPE_LABELS: dict[str, str] = {
     "short_answer": "مقالي قصير",
 }
 
-#: حروف الخيارات الثابتة (ا، ب، ج، د) — لا تحسب من يونيكود (الثالثة ة لا ج).
-OPTION_LETTERS: tuple[str, ...] = ("ا", "ب", "ج", "د")
+#: حروف الخيارات الثابتة (أ، ب، ج، د) — لا تحسب من يونيكود (الثالثة ة لا ج).
+OPTION_LETTERS: tuple[str, ...] = ("أ", "ب", "ج", "د")
 
 
 def render_quiz_paper(request: QuizRequest | None, body: str) -> str:
@@ -52,16 +52,27 @@ def _render_question(index: int, question_dict: dict[str, object], show_answers:
     return "\n".join(lines)
 
 
+def _display_points(quiz: QuizOutput) -> list[int]:
+    """درجات العرض: المعينة كما هي، والتوزيع المتساوي (100/n) عند غيابها كلها."""
+    points = [question.points for question in quiz.questions]
+    if any(points):
+        return points
+    count = len(points)
+    share, rest = divmod(100, count)
+    return [share + (1 if pos < rest else 0) for pos in range(count)]
+
+
 def render_quiz_output(quiz: QuizOutput, show_answers: bool = False) -> str:
     """اختبار متحقق منه ← ورقة نهائية (نسخة الطالب/المعلم عبر show_answers)."""
-    total = sum(question.points for question in quiz.questions)
+    shown = _display_points(quiz)
+    total = sum(shown)
     header = (
         f"اختبار: {quiz.topic} ({quiz.grade_level})"
         f" — عدد الأسئلة: {len(quiz.questions)} — المجموع: {total}"
     )
     instructions = "التعليمات: أجب عن جميع الأسئلة، وعلل إجابات الصح/خطأ بسطر واحد."
     body = "\n\n".join(
-        _render_question(pos, question.model_dump(), show_answers)
-        for pos, question in enumerate(quiz.questions, start=1)
+        _render_question(pos, {**question.model_dump(), "points": pts}, show_answers)
+        for pos, (question, pts) in enumerate(zip(quiz.questions, shown, strict=True), start=1)
     )
     return f"{header}\n\n{instructions}\n\n{body}"
