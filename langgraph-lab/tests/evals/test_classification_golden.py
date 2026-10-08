@@ -73,7 +73,7 @@ def test_classify_node_falls_back_on_failure() -> None:
 
 
 _EXPECTED_ROUTES: dict[str, RouteTarget] = {
-    "greeting": "greeting",
+    "greeting": "answer",
     "general_question": "answer",
     "generate_quiz": "extract",
     "generate_worksheet": "worksheet_extract",

@@ -85,10 +85,44 @@ def _service(intent: Intent, quiz: QuizRequest | None = None) -> tuple[ChatServi
     return ChatService(build_graph(chat, FakeStructured(intent=intent, quiz=quiz), [])), chat
 
 
-def test_greeting_skips_llm() -> None:
+def test_greeting_uses_llm() -> None:
     service, chat = _service("greeting")
-    assert "أهلاً بك" in service.handle_message("مرحبا")
-    assert chat.calls == 0
+    assert service.handle_message("مرحبا") == "fake-reply-to-2-messages"
+    assert chat.calls == 1
+
+
+def test_greeting_uses_context_no_knowledge_no_sources() -> None:
+    import asyncio
+
+    from langchain_core.messages import HumanMessage
+
+    from app.graph.nodes.answer import make_answer_node
+
+    class BoomKnowledge:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def search(self, query: str, limit: int) -> list[dict[str, object]]:
+            self.calls += 1
+            raise AssertionError("knowledge must be skipped for greeting")
+
+        def search_hybrid(self, query: str, limit: int) -> list[dict[str, object]]:
+            self.calls += 1
+            raise AssertionError("knowledge must be skipped for greeting")
+
+    chat = FakeChat()
+    knowledge = BoomKnowledge()
+    node = make_answer_node(chat, knowledge)  # type: ignore[arg-type]
+    state = {
+        "messages": [HumanMessage(content="اشرح الكسور"), HumanMessage(content="مرحبا")],
+        "intent": "greeting",
+        "profile_snapshot": {"name": "", "subject": "", "grades": []},
+    }
+    result = asyncio.run(node(state))  # type: ignore[arg-type]
+    assert knowledge.calls == 0
+    assert result["retrieved_sources"] == []
+    assert "المصادر" not in str(result["messages"][0].content)
+    assert chat.calls == 1
 
 
 def test_general_question_uses_llm() -> None:
@@ -121,7 +155,7 @@ def test_missing_fields_asks_clarification() -> None:
 
 def test_classify_retries_then_succeeds() -> None:
     service = ChatService(build_graph(FakeChat(), FakeStructuredFailOnce(), []))
-    assert "أهلاً بك" in service.handle_message("مرحبا")
+    assert service.handle_message("مرحبا") == "fake-reply-to-2-messages"
 
 
 def test_classify_falls_back_to_general() -> None:
@@ -132,7 +166,7 @@ def test_classify_falls_back_to_general() -> None:
 
 
 def test_routes() -> None:
-    assert route_by_intent({"messages": [], "intent": "greeting"}) == "greeting"
+    assert route_by_intent({"messages": [], "intent": "greeting"}) == "answer"
     assert route_by_intent({"messages": [], "intent": "general_question"}) == "answer"
     assert route_by_intent({"messages": [], "intent": "unsupported"}) == "decline"
     assert route_by_intent({"messages": [], "intent": "generate_quiz"}) == "extract"

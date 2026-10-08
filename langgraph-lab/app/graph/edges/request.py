@@ -58,14 +58,16 @@ def _has_prior_ai(messages: list[BaseMessage]) -> bool:
 
 
 def route_by_request(state: ChatState) -> RequestTarget:
-    """طلب موحد ← اسم العقدة التالية (حتمي بالكامل)."""
+    """طلب موحد ← اسم العقدة التالية (حتمي بالكامل.
+
+    التحية دائما ← answer ليرد النموذج مع نافذة السياق،
+    فيجيب بناء على سياق المحادثة إن وجد.
+    )."""
     resumed = _resume_incomplete(state)
     if resumed is not None:
         return resumed
     req = _canonical(state)
     intent = req.intent if req is not None else str(state.get("intent", "general_question"))
-    if intent == "greeting" and not _has_prior_ai(list(state.get("messages", []))):
-        return "greeting"
     if intent == "greeting":
         return "answer"
     direct = _DIRECT.get(str(intent))

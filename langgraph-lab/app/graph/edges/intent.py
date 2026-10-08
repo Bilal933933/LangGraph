@@ -46,20 +46,17 @@ def _has_prior_ai(messages: list[BaseMessage]) -> bool:
 
 
 def _route_greeting(state: ChatState) -> RouteTarget | None:
-    """نية تحية ← الأولى greeting واللاحقة answer (None لغير التحية)."""
+    """نية تحية ← answer دائما بالنموذج مع نافذة السياق (None لغير التحية)."""
     if state.get("intent") != "greeting":
         return None
-    if _has_prior_ai(list(state.get("messages", []))):
-        return "answer"
-    return "greeting"
+    return "answer"
 
 
 def route_by_intent(state: ChatState) -> RouteTarget:
     """نية المعلم + سياق الجلسة ← اسم العقدة التالية.
 
-    التحية الأولى (لا رد سابق في السجل) ← greeting الثابتة.
-    تحية لاحقة في نفس thread_id ← answer ليرد النموذج من نافذة
-    السياق (Context Window) بدل تكرار الترحيب الأول.
+    التحية دائما ← answer ليرد النموذج من نافذة
+    السياق (Context Window) بناء على سياق المحادثة.
     استكمال طلب ناقص (missing_fields) له أولوية على النية الغامضة
     حتى لا يضيع موضوع الدرس بين الدورين.
     """

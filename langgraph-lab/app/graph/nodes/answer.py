@@ -18,18 +18,17 @@ from app.graph.nodes.retrieve import (
     format_sources_block,
 )
 from app.graph.prompts.responses.general import render_general
+from app.graph.prompts.runtime.greeting import GREETING_SYSTEM
 from app.graph.window import select_window
 
 
 def make_greeting_node(
     directory: TeacherDirectoryPort | None = None,
 ) -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
-    """عقدة التحية الأولى فقط: رد سريع بلا LLM.
+    """عقدة التحية القديمة (Legacy): محفوظة للتوافق الخلفي فقط.
 
-    الجلب كسول (Lazy): لا تستعلم عن الاسم إلا إذا وصل المسار إلى
-    greeting وكان teacher_id موجودا. غياب أو فشل ← تحية عامة.
-    المتابعة (تحية ثانية في نفس الجلسة) لا تأتي هنا أصلا، بل
-    يوجهها route_by_intent إلى answer ليرد النموذج من نافذة السياق.
+    الموجه الحالي يرسل كل greeting إلى answer ليرد النموذج
+    مع نافذة السياق. لا تحذفها حتى لا ينكسر تسجيل العقد.
     """
 
     def _greet(state: ChatState) -> dict[str, list[BaseMessage]]:
@@ -48,6 +47,52 @@ def make_greeting_node(
     return _greet
 
 
+def _is_greeting(state: ChatState) -> bool:
+    """الحالة ← True عند نية تحية فقط (نظام محادثة لا رد منفصل)."""
+    if state.get("intent") == "greeting":
+        return True
+    raw = state.get("canonical_request")
+    intent = getattr(raw, "intent", None)
+    if isinstance(intent, str) and intent == "greeting":
+        return True
+    if isinstance(raw, dict) and raw.get("intent") == "greeting":
+        return True
+    return False
+
+
+def _teacher_name(state: ChatState) -> str:
+    """اللقطة أو السياق المحمل ← اسم المعلم أو فارغ."""
+    snapshot = state.get("profile_snapshot")
+    if isinstance(snapshot, dict):
+        name = str(snapshot.get("name") or "").strip()
+        if name:
+            return name[:100]
+    runtime = state.get("runtime_context")
+    name = getattr(runtime, "name", "")
+    return str(name or "").strip()[:100]
+
+
+async def _answer_greeting(
+    state: ChatState,
+    model: ChatModelPort,
+    config: RunnableConfig | None,
+) -> dict[str, object]:
+    """مسار التحية: نموذج + نافذة السياق فقط، بلا معرفة وبلا مصادر."""
+    logger = get_logger()
+    prompt = select_window(list(state["messages"]))
+    name = _teacher_name(state)
+    instruction = GREETING_SYSTEM
+    if name:
+        instruction += f" اسم المعلم: {name}."
+    prompt = [SystemMessage(content=instruction), *prompt]
+    logger.info("stage=answer.greeting window=%d has_name=%s", len(prompt), bool(name))
+    callbacks: Any = config.get("callbacks") if config is not None else None
+    parts = [delta async for delta in model.astream(prompt, callbacks=callbacks)]
+    reply = AIMessage(content="".join(parts).strip() or "أهلاً بك! كيف أقدر أساعدك اليوم؟")
+    reply.name = "answer"
+    return {"messages": [reply], "retrieved_sources": []}
+
+
 def make_answer_node(
     model: ChatModelPort,
     knowledge: KnowledgeSearchPort | None = None,
@@ -58,6 +103,8 @@ def make_answer_node(
     async def _answer(
         state: ChatState, config: RunnableConfig | None = None
     ) -> dict[str, object]:
+        if _is_greeting(state):
+            return await _answer_greeting(state, model, config)
         logger = get_logger()
         with stage(logger, "answer.build_prompt", history=len(state["messages"])):
             prompt = select_window(list(state["messages"]))
