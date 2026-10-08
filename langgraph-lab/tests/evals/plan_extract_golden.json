@@ -1,0 +1,6 @@
+[
+  {"input": "حضر درس الفاعل للصف الثالث في 45 دقيقة", "expected": {"topic": "الفاعل", "grade_level": "الصف الثالث", "minutes": 45}},
+  {"input": "تحضير عن الكسور للصف الرابع", "expected": {"topic": "الكسور", "grade_level": "الصف الرابع", "minutes": null}},
+  {"input": "اريد تحضير درس", "expected": {"topic": null, "grade_level": null, "minutes": null}}
+]
+

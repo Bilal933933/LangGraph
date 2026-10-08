@@ -8,6 +8,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
 from app.domain.models import IntentResult, QuizRequest
+from app.domain.outputs.quiz import QuizOutput
 from app.domain.ports import ChatModelPort
 from app.graph.builder import build_graph
 from app.graph.edges import route_after_agent
@@ -40,6 +41,26 @@ class FakeStructuredQuiz:
             return cast("T", IntentResult(intent="generate_quiz"))
         if schema is QuizRequest:
             return cast("T", _FULL_QUIZ)
+        if schema is QuizOutput:
+            return cast(
+                "T",
+                QuizOutput.model_validate(
+                    {
+                        "topic": "الكسور",
+                        "grade_level": "الصف الرابع",
+                        "questions": [
+                            {
+                                "type": "mcq",
+                                "stem": "اختبار الكسور: ما بسط الكسر 1/2؟",
+                                "options": ["1", "2", "3", "4"],
+                                "answer_index": 0,
+                                "explanation": "البسط هو العدد العلوي",
+                                "points": 100,
+                            }
+                        ],
+                    }
+                ),
+            )
         raise AssertionError(f"unexpected schema {schema}")
 
 

@@ -5,6 +5,8 @@ import type {
   ConversationDetail,
   ConversationItem,
   SendMessageResult,
+  TeacherCopyKind,
+  TeacherCopyResult,
 } from "../types";
 
 export async function listConversations(): Promise<ConversationItem[]> {
@@ -60,6 +62,26 @@ export async function postConversationMessage(
   if (!isMessageReply(data)) throw new Error("رد غير صالح من السيرفر.");
   const reply = data as { reply: string; clarification?: unknown };
   return { reply: reply.reply, sources: extractSources(data), clarification: extractClarification(reply) };
+}
+
+export async function getTeacherCopy(
+  id: number,
+  kind: TeacherCopyKind,
+): Promise<TeacherCopyResult> {
+  const response = await authedFetch(
+    `/conversations/${id}/teacher-copy?kind=${kind}`,
+  );
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(extractErrorMessage(data, response.status));
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    typeof (data as { text?: unknown }).text !== "string"
+  ) {
+    throw new Error("رد غير صالح من السيرفر.");
+  }
+  const copy = data as { kind?: unknown; text: string };
+  return { kind: typeof copy.kind === "string" ? copy.kind : kind, text: copy.text };
 }
 
 export function extractClarification(data: { clarification?: unknown }): Clarification | null {

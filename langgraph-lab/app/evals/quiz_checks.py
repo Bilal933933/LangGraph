@@ -2,6 +2,8 @@
 
 import re
 
+from app.domain.outputs.quiz import QuizOutput
+
 #: أسطر مرقمة: "1)" أو "س1:" أو "سؤال 2." في بداية السطر.
 _QUESTION_MARK = re.compile(r"(?m)^\s*(?:س(?:ؤال)?\s*)?\d+\s*[.)\-:]")
 
@@ -55,4 +57,31 @@ def evaluate_quiz_text(
         "question_count": count_numbered_questions(text),
         "num_questions_required": num_questions,
         "has_answer_key": has_answer_key(text),
+    }
+
+
+def evaluate_quiz_output(quiz: object, num_questions: int) -> dict[str, object]:
+    """اختبار متحقق منه + العدد المطلوب ← فحوصات دلالية (حدود، تكرار، عدد)."""
+    if not isinstance(quiz, QuizOutput):
+        return {"valid": False, "reason": "not QuizOutput"}
+    bad_index = sum(
+        1
+        for question in quiz.questions
+        if question.type in ("mcq", "true_false")
+        and (
+            question.answer_index is None
+            or not 0 <= question.answer_index < len(question.options)
+        )
+    )
+    duplicate_options = sum(
+        1 for question in quiz.questions if len(set(question.options)) != len(question.options)
+    )
+    return {
+        "valid": bad_index == 0 and duplicate_options == 0,
+        "question_count": len(quiz.questions),
+        "num_questions_required": num_questions,
+        "count_ok": len(quiz.questions) >= num_questions,
+        "bad_answer_index": bad_index,
+        "duplicate_options": duplicate_options,
+        "schema_version": quiz.schema_version,
     }

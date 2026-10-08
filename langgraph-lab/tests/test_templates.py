@@ -1,8 +1,8 @@
 """اختبارات قوالب الرد: عامة + خطة درس (وهمي بلا Gemini)."""
 
 from app.domain.models import LessonPlan
-from app.graph.prompts.responses.general import render_general
-from app.graph.prompts.responses.lesson_plan import render_lesson_plan
+from app.rendering.general import render_general
+from app.rendering.lesson_plan import render_lesson_plan
 
 
 def test_general_renders_reply_and_sources() -> None:

@@ -11,13 +11,17 @@ from langchain_core.runnables import RunnableConfig
 
 from app.core.config import get_settings
 from app.domain.models import LessonPlan, WorksheetRequest
+from app.domain.outputs.worksheet import WorksheetOutput
 from app.domain.ports import ChatModelPort, KnowledgeSearchPort, StructuredOutputPort
 from app.domain.state import ChatState
 from app.graph.content import message_text
 from app.graph.nodes.retrieve import build_search_query, format_knowledge_context
+from app.graph.nodes.structured_retry import parse_with_retry
 from app.graph.nodes.worksheet_bridge import build_worksheet_shape_prompt
+from app.graph.progress import emit as emit_progress
 from app.graph.prompts import WORKSHEET_EXTRACT_SYSTEM
-from app.graph.prompts.responses.worksheet_paper import render_worksheet_paper
+from app.rendering.registry import render_for_intent
+from app.rendering.worksheet_paper import render_worksheet_paper
 
 _WORKSHEET_REQUIRED_LABELS = {
     "topic": "موضوع الدرس",
@@ -161,12 +165,18 @@ def make_worksheet_retrieve_node(
 def make_worksheet_write_node(
     model: ChatModelPort,
     limit: int | None = None,
-) -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
-    """طلب + مصادر ← ورقة عمل نهائية بقالب ثابت (تمرير callbacks للعداد)."""
+    structured: StructuredOutputPort | None = None,
+) -> Callable[..., dict[str, object]]:
+    """طلب + مصادر ← ورقة عمل نهائية بقالب ثابت (تمرير callbacks للعداد).
+
+    مع structured ← توليد مهيكل + حفظ worksheet_draft + رد نسخة الطالب.
+    بدونه ← مسار النص الحر القديم (توافق خلفي).
+    """
 
     def _write(
         state: ChatState, config: RunnableConfig | None = None
-    ) -> dict[str, list[BaseMessage]]:
+    ) -> dict[str, object]:
+        emit_progress("worksheet_write", "start")
         req = _coerce_request(state.get("worksheet_request"))
         shape = build_worksheet_shape_prompt(req)
         chunks = state.get("retrieved_sources", [])
@@ -178,6 +188,13 @@ def make_worksheet_write_node(
         if context is not None:
             prompt.append(SystemMessage(content=context))
         prompt.append(HumanMessage(content=f"أنشئ ورقة العمل عن: {topic} ({grade})"))
+        if structured is not None:
+            emit_progress("worksheet_write", "shaping")
+            sheet = parse_with_retry(structured, prompt, WorksheetOutput)
+            paper = render_for_intent("generate_worksheet", sheet)
+            out = AIMessage(content=paper)
+            out.name = "worksheet_write"
+            return {"messages": [out], "worksheet_draft": sheet}
         reply = model.invoke(
             prompt, callbacks=config.get("callbacks") if config is not None else None
         )

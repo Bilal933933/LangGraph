@@ -17,6 +17,7 @@ import { GreetingHero } from "./greeting-hero";
 import { MessageComposer } from "./message-composer";
 import { MessageList } from "./message-list";
 import { MessagesSkeleton } from "./messages-skeleton";
+import { TeacherCopyDialog } from "./teacher-copy-dialog";
 
 const MAX_LENGTH = 4000;
 
@@ -41,6 +42,7 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
   const streamingText = useChatStore((state) => state.streamingText);
   const streamStage = useChatStore((state) => state.streamStage);
   const [draft, setDraft] = useState("");
+  const [teacherCopyOpen, setTeacherCopyOpen] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -119,6 +121,9 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
             sending={sending && streamingText.length === 0}
             stage={streamStage}
             onRetry={retryLast}
+            onTeacherCopy={
+              conversationId === null ? undefined : () => setTeacherCopyOpen(true)
+            }
           />
         )}
 
@@ -130,6 +135,11 @@ export function ChatView({ conversationId }: { conversationId: number | null }) 
           maxLength={MAX_LENGTH}
         />
         <ClarificationDialog onSubmit={submit} />
+        <TeacherCopyDialog
+          conversationId={conversationId}
+          open={teacherCopyOpen}
+          onOpenChange={setTeacherCopyOpen}
+        />
       </div>
     </div>
   );

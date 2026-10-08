@@ -10,6 +10,7 @@ pgvector)، بحث ويب اختياري، ومحادثات محفوظة في Po
 - `scripts/ingest.py` — استيعاب `data/*.md` إلى `knowledge_chunks` (البيان في `data/SOURCES.md`)
 - `tests/evals/` — الذهبي + فحوصات هيكلية للاختبارات والخطط (الحي بـ `RUN_LIVE_EVALS=1`)
 - `web/` — واجهة Next.js (عربي RTL، ثيمات، TanStack Query + Zustand + sonner، إرسال متدفق)
+- `app/graph/prompts/PROMPT_RULES.md` — قواعد هندسة البرومبتات الملزمة (القالب، الممنوعات، الذهبي)
 - `docker-compose.yml` — Postgres 16 فقط (الأسرار من `.env`، لا قيم ثابتة)
 
 ## الأمان والحدود

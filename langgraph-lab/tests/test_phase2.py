@@ -8,12 +8,34 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
 from app.domain.models import Intent, IntentResult, QuizRequest
+from app.domain.outputs.quiz import QuizOutput
 from app.domain.ports import ChatModelPort
 from app.graph.builder import build_graph
 from app.graph.edges import route_after_extract, route_by_request
 from app.services.chat_service import ChatService
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _canned_quiz(topic: str | None = None, grade: str | None = None) -> QuizOutput:
+    """اختبار جاهز يحاكي قدرة الإنتاج على أي مخطط."""
+    subject = topic or "الكسور"
+    return QuizOutput.model_validate(
+        {
+            "topic": subject,
+            "grade_level": grade or "الصف الرابع",
+            "questions": [
+                {
+                    "type": "mcq",
+                    "stem": f"سؤال عن {subject}",
+                    "options": ["أ", "ب", "ج", "د"],
+                    "answer_index": 0,
+                    "explanation": "شرح",
+                    "points": 100,
+                }
+            ],
+        }
+    )
 
 
 class FakeChat:
@@ -53,6 +75,8 @@ class FakeStructured:
             return cast("T", IntentResult(intent=self._intent))
         if schema is QuizRequest:
             return cast("T", self._quiz)
+        if schema is QuizOutput:
+            return cast("T", _canned_quiz(self._quiz.topic, self._quiz.grade_level))
         raise AssertionError(f"unexpected schema {schema}")
 
 
@@ -127,7 +151,7 @@ def test_greeting_uses_context_no_knowledge_no_sources() -> None:
 
 def test_general_question_uses_llm() -> None:
     service, chat = _service("general_question")
-    assert service.handle_message("اشرح الكسور") == "fake-reply-to-1-messages"
+    assert service.handle_message("اشرح الكسور") == "fake-reply-to-2-messages"
     assert chat.calls == 1
 
 
@@ -141,7 +165,7 @@ def test_complete_quiz_confirms_then_agent_runs() -> None:
     quiz = QuizRequest(topic="الكسور", grade_level="الصف الرابع", num_questions=5)
     service, chat = _service("generate_quiz", quiz)
     reply = service.handle_message("اختبار من 5 أسئلة عن الكسور للصف الرابع")
-    assert reply.startswith("fake-reply-to-")
+    assert "اختبار: الكسور" in reply
     assert chat.calls == 1
 
 
@@ -161,7 +185,7 @@ def test_parse_retries_then_succeeds() -> None:
 def test_parse_falls_back_to_general() -> None:
     chat = FakeChat()
     service = ChatService(build_graph(chat, FakeStructuredAlwaysFail(), []))
-    assert service.handle_message("???") == "fake-reply-to-1-messages"
+    assert service.handle_message("???") == "fake-reply-to-2-messages"
     assert chat.calls == 1
 
 

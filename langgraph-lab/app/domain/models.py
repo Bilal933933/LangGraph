@@ -4,6 +4,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.domain.outputs.quiz import QuizOutput as QuizOutput
+from app.domain.outputs.quiz import QuizQuestion as QuizQuestion
+from app.domain.outputs.worksheet import WorksheetItem as WorksheetItem
+from app.domain.outputs.worksheet import WorksheetOutput as WorksheetOutput
+
 Intent = Literal[
     "greeting",
     "general_question",
@@ -140,3 +145,4 @@ class ClarificationOut(BaseModel):
     missing: list[str] = Field(default_factory=list)
     suggestions: dict[str, list[str]] = Field(default_factory=dict)
     profile_empty: bool = False
+

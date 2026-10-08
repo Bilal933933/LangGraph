@@ -20,8 +20,9 @@ from app.graph.nodes.retrieve import (
     format_knowledge_context,
     format_sources_block,
 )
+from app.graph.progress import emit as emit_progress
 from app.graph.prompts import PLAN_EXTRACT_SYSTEM, PLAN_REPAIR_SYSTEM, PLAN_SECTION_SYSTEMS
-from app.graph.prompts.responses.lesson_plan import render_lesson_plan
+from app.rendering.lesson_plan import render_lesson_plan
 
 _EVASIVE_MARKERS = (
     "زودني",
@@ -189,6 +190,7 @@ def make_plan_section_node(
     def _section(
         state: ChatState, config: RunnableConfig | None = None
     ) -> dict[str, object]:
+        emit_progress("plan_section", "start")
         kind = state.get("section_task") or "objectives"
         system = PLAN_SECTION_SYSTEMS.get(str(kind), PLAN_SECTION_SYSTEMS["objectives"])
         req: object = state.get("lesson_request")
@@ -287,6 +289,7 @@ def make_plan_merge_node(
     def _merge(
         state: ChatState, config: RunnableConfig | None = None
     ) -> dict[str, object]:
+        emit_progress("plan_merge", "start")
         req: object = state.get("lesson_request")
         if isinstance(req, LessonRequest):
             topic, grade, minutes = req.topic or "الدرس", req.grade_level or "", req.minutes or 45

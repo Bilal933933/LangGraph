@@ -1,0 +1,7 @@
+[
+  {"input": "اعملي ورقة عمل عن الكسور للصف الرابع", "expected": {"kind": "worksheet", "topic": "الكسور", "grade_level": "الصف الرابع", "num_items": null, "minutes": null}},
+  {"input": "نشاط جماعي 20 دقيقة عن الماء للصف الاول", "expected": {"kind": "activity", "topic": "الماء", "grade_level": "الصف الاول", "num_items": null, "minutes": 20}},
+  {"input": "تمارين عن الفاعل", "expected": {"kind": "worksheet", "topic": "الفاعل", "grade_level": null, "num_items": null, "minutes": null}},
+  {"input": "لعبة صفية عن الجمع للصف الثاني", "expected": {"kind": "activity", "topic": "الجمع", "grade_level": "الصف الثاني", "num_items": null, "minutes": null}}
+]
+

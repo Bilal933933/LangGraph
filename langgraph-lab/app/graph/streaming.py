@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 StreamEvent = dict[str, object]
 
-_STREAM_MODES = ["updates", "messages", "values"]
+_STREAM_MODES = ["updates", "messages", "values", "custom"]
 
 #: عقد النص المرئي فقط: رموز غير answer (أدوات/خطط) ← stage فقط بلا فقاعة.
 _TEXT_TOKEN_NODES = frozenset({"answer"})
@@ -63,6 +63,12 @@ async def stream_run(
                     yield {"type": "token", "node": node, "text": text}
             elif mode == "values" and isinstance(data, dict):
                 final = data
+            elif mode == "custom" and isinstance(data, dict):
+                yield {
+                    "type": "progress",
+                    "node": str(data.get("node", "")),
+                    "phase": str(data.get("phase", "")),
+                }
         yield {"type": "done", "state": final}
     except Exception as exc:
         logger.exception("stream_run_failed error=%r", exc)

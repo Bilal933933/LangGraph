@@ -8,17 +8,21 @@
 from collections.abc import Callable
 from typing import Any
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.domain.models import LessonPlan
-from app.domain.ports import ChatModelPort
+from app.domain.outputs.quiz import QuizOutput
+from app.domain.ports import ChatModelPort, StructuredOutputPort
 from app.domain.state import ChatState
 from app.graph.content import message_text
 from app.graph.nodes.profile import profile_ask_instruction
 from app.graph.nodes.quiz_bridge import build_quiz_shape_prompt
+from app.graph.nodes.structured_retry import parse_with_retry
+from app.graph.progress import emit as emit_progress
 from app.graph.prompts.runtime.quiz import QUIZ_AGENT_SYSTEM
 from app.graph.window import CONTEXT_WINDOW_MESSAGES, select_window
+from app.rendering.registry import render_for_intent
 
 
 def _coerce_plan(raw: object) -> LessonPlan | None:
@@ -35,12 +39,15 @@ def _coerce_plan(raw: object) -> LessonPlan | None:
 
 def make_quiz_agent_node(
     model: ChatModelPort,
-) -> Callable[[ChatState], dict[str, list[BaseMessage]]]:
-    """مصنع وكيل الاختبارات: يغلق على نموذج مربوط بأدوات الاختبارات فقط."""
+    structured: StructuredOutputPort | None = None,
+) -> Callable[..., dict[str, object]]:
+    """مصنع وكيل الاختبارات: يغلق على نموذج مربوط بأدوات الاختبارات فقط.
 
-    def _quiz_agent(
-        state: ChatState, config: RunnableConfig | None = None
-    ) -> dict[str, list[BaseMessage]]:
+    مع structured ← توليد مهيكل + حفظ quiz_draft + رد نسخة الطالب (بلا إجابات).
+    بدونه ← مسار النص الحر القديم (توافق خلفي).
+    """
+
+    def _prompt(state: ChatState) -> tuple[list[BaseMessage], str]:
         request = state.get("quiz_request")
         topic = request.topic if request and request.topic else ""
         plan = _coerce_plan(state.get("plan_draft"))
@@ -61,9 +68,29 @@ def make_quiz_agent_node(
             HumanMessage(content=f"ولد اختبارا عن: {topic or last_text}"),
             *history[-4:],
         ]
+        return prompt, topic or last_text
+
+    def _quiz_agent(
+        state: ChatState, config: RunnableConfig | None = None
+    ) -> dict[str, object]:
+        emit_progress("quiz_agent", "start")
+        prompt, _ = _prompt(state)
         callbacks: Any = config.get("callbacks") if config is not None else None
         reply = model.invoke(prompt, callbacks=callbacks)
         reply.name = "quiz_agent"
-        return {"messages": [reply]}
+        if structured is None or getattr(reply, "tool_calls", None):
+            return {"messages": [reply]}
+        emit_progress("quiz_agent", "shaping")
+        quiz = parse_with_retry(
+            structured,
+            [
+                SystemMessage(content="حول نص الاختبار التالي إلى المخطط بدقة."),
+                HumanMessage(content=message_text(reply.content)),
+            ],
+            QuizOutput,
+        )
+        paper = AIMessage(content=render_for_intent("generate_quiz", quiz))
+        paper.name = "quiz_agent"
+        return {"messages": [paper], "quiz_draft": quiz}
 
     return _quiz_agent

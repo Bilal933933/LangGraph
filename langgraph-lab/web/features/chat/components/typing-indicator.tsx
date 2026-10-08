@@ -6,12 +6,18 @@ const STAGE_LABELS: Record<string, string> = {
   retrieve: "يبحث في الكتب…",
   answer: "يكتب الرد…",
   quiz_agent: "يولد الاختبار…",
+  "quiz_agent:shaping": "ينسق الاختبار…",
   quiz_tools: "يجلب الدروس…",
   plan_section: "يكتب أقسام الخطة…",
+  plan_merge: "يجمع الخطة…",
+  worksheet_write: "يكتب ورقة العمل…",
+  "worksheet_write:shaping": "ينسق ورقة العمل…",
 };
 
 export function TypingIndicator({ stage }: { stage?: string | null }) {
-  const label = (stage && STAGE_LABELS[stage]) || "المساعد يكتب الآن";
+  const label =
+    (stage && (STAGE_LABELS[stage] ?? STAGE_LABELS[stage.split(":")[0]])) ||
+    "المساعد يكتب الآن";
   return (
     <div
       aria-label={label}

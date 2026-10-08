@@ -23,7 +23,7 @@ from app.graph.nodes.worksheet_bridge import (
     build_worksheet_shape_prompt,
     worksheet_request_from_plan,
 )
-from app.graph.prompts.responses.worksheet_paper import render_worksheet_paper
+from app.rendering.worksheet_paper import render_worksheet_paper
 
 _BODY = "1) تمرين عن الكسور\n2) تمرين عن الكسور\n\nمفتاح الإجابة للمعلم: 1-أ 2-ب\nدعم للمتعثرين وإثراء للمتقدمين"
 

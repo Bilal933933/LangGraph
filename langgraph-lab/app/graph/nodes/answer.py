@@ -17,9 +17,10 @@ from app.graph.nodes.retrieve import (
     format_knowledge_context,
     format_sources_block,
 )
-from app.graph.prompts.responses.general import render_general
+from app.graph.prompts.runtime.answer import ANSWER_SYSTEM
 from app.graph.prompts.runtime.greeting import GREETING_SYSTEM
 from app.graph.window import select_window
+from app.rendering.general import render_general
 
 
 def _is_greeting(state: ChatState) -> bool:
@@ -105,6 +106,7 @@ def make_answer_node(
             if context is not None:
                 prompt = [SystemMessage(content=context), *prompt]
                 logger.info("stage=answer.knowledge chunks=%d", len(chunks))
+        prompt = [SystemMessage(content=ANSWER_SYSTEM), *prompt]
         logger.info(
             "stage=answer.prompt_ready window=%d has_profile_instruction=%s",
             len(prompt),

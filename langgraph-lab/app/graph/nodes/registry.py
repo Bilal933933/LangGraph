@@ -71,7 +71,7 @@ def core_nodes(
         "extract": make_extract_node(structured),
         "ask_clarification": ask_clarification_node,
         "confirm_ready": confirm_ready_node,
-        "quiz_agent": make_quiz_agent_node(bound_quiz_model),
+        "quiz_agent": make_quiz_agent_node(bound_quiz_model, structured),
         "extract_profile": make_extract_profile_node(structured),
         "ask_profile_name": ask_profile_name_node,
         "save_profile": make_save_profile_node(profile_writer),
@@ -86,6 +86,6 @@ def core_nodes(
         "worksheet_extract": make_worksheet_extract_node(structured),
         "worksheet_ask": make_worksheet_ask_node(),
         "worksheet_retrieve": make_worksheet_retrieve_node(knowledge),
-        "worksheet_write": make_worksheet_write_node(model),
+        "worksheet_write": make_worksheet_write_node(model, structured=structured),
     }
     return nodes

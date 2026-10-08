@@ -53,3 +53,10 @@ export type LastSent = {
   conversationId: number;
   text: string;
 } | null;
+
+export type TeacherCopyKind = "quiz" | "worksheet";
+
+export type TeacherCopyResult = {
+  kind: string;
+  text: string;
+};

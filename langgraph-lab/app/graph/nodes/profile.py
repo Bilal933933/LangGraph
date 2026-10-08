@@ -18,6 +18,7 @@ from app.domain.ports import (
 from app.domain.state import ChatState
 from app.graph.content import message_text
 from app.graph.prompts import PROFILE_INFO_SYSTEM, PROFILE_SYSTEM
+from app.graph.prompts.runtime.profile_ask import PROFILE_QUESTIONS, build_profile_ask
 
 
 def make_extract_profile_node(
@@ -92,12 +93,6 @@ def ask_profile_name_node(state: ChatState) -> dict[str, list[BaseMessage]]:
 
 
 _PROFILE_FIELDS = ("name", "subject", "grades")
-
-_PROFILE_QUESTIONS = {
-    "name": "ما الاسم الذي تريد تسجيله؟",
-    "subject": "ما مادة تخصصك؟",
-    "grades": "لأي صفوف تدرس؟ (يمكنك ذكر أكثر من صف)",
-}
 
 
 def _clean_str(value: object) -> str:
@@ -181,10 +176,7 @@ def profile_ask_instruction(snapshot: dict[str, object]) -> str | None:
     missing = missing_profile_fields(snapshot)
     if not missing:
         return None
-    return (
-        "أنت تتحدث مع معلم لم يخبرك بعد بالتالي. اختم ردك حتما بهذا "
-        f"السؤال حرفيا في سطر مستقل: {_PROFILE_QUESTIONS[missing[0]]}"
-    )
+    return build_profile_ask(PROFILE_QUESTIONS[missing[0]])
 
 
 def make_apply_profile_node(

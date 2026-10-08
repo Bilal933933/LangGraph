@@ -8,6 +8,7 @@ import type { SendMessageResult } from "../types";
 
 export type StreamHandlers = {
   onStage?: (node: string) => void;
+  onProgress?: (node: string, phase: string) => void;
   onToken?: (text: string) => void;
   onDone?: (result: SendMessageResult) => void;
   onError?: (error: Error) => void;
@@ -46,6 +47,15 @@ function dispatchFrame(frame: string, handlers: StreamHandlers): void {
     typeof (data as { text?: unknown }).text === "string"
   ) {
     handlers.onToken?.((data as { text: string }).text);
+  } else if (
+    event === "progress" &&
+    typeof (data as { node?: unknown }).node === "string" &&
+    typeof (data as { phase?: unknown }).phase === "string"
+  ) {
+    handlers.onProgress?.(
+      (data as { node: string }).node,
+      (data as { phase: string }).phase,
+    );
   } else if (event === "done") {
     const payload = data as DonePayload;
     if (typeof payload.reply !== "string") return;

@@ -1,0 +1,7 @@
+[
+  {"input": "اختبار من 5 اسئلة عن الكسور للصف الرابع", "expected": {"topic": "الكسور", "grade_level": "الصف الرابع", "num_questions": 5}},
+  {"input": "انشئ اختبارا عن الجملة الاسمية", "expected": {"topic": "الجملة الاسمية", "grade_level": null, "num_questions": null}},
+  {"input": "اختبار 10 اسئلة عن الفاعل للصف الثالث", "expected": {"topic": "الفاعل", "grade_level": "الصف الثالث", "num_questions": 10}},
+  {"input": "صح وخطا عن الماء للصف الاول", "expected": {"topic": "الماء", "grade_level": "الصف الاول", "num_questions": null}}
+]
+

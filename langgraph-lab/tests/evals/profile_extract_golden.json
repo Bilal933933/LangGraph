@@ -1,0 +1,7 @@
+[
+  {"input": "انا احمد", "expected": {"name": "احمد", "subject": null, "grades": []}},
+  {"input": "اسمي سارة العتيبي وادرس الرياضيات", "expected": {"name": "سارة العتيبي", "subject": "الرياضيات", "grades": []}},
+  {"input": "ادرس الثالث والرابع الاعدادي", "expected": {"name": null, "subject": null, "grades": ["الثالث الاعدادي", "الرابع الاعدادي"]}},
+  {"input": "اشرح درس الفاعل", "expected": {"name": null, "subject": null, "grades": []}}
+]
+

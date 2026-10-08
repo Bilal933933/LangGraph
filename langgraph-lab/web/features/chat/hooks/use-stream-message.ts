@@ -54,6 +54,8 @@ export function useStreamMessage(pageConversationId: number | null) {
         text,
         {
           onStage: (node) => useChatStore.getState().setStreamStage(node),
+          onProgress: (node, phase) =>
+            useChatStore.getState().setStreamStage(`${node}:${phase}`),
           onToken: (delta) =>
             useChatStore
               .getState()

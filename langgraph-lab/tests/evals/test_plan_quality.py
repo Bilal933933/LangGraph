@@ -2,7 +2,7 @@
 
 from app.domain.models import LessonPlan
 from app.evals.plan_checks import evaluate_plan_render
-from app.graph.prompts.responses.lesson_plan import render_lesson_plan
+from app.rendering.lesson_plan import render_lesson_plan
 
 
 def _full_plan() -> LessonPlan:

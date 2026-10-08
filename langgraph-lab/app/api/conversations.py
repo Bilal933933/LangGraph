@@ -12,6 +12,7 @@ from app.api.schemas import (
     MessageOut,
     SendMessageIn,
     SendMessageOut,
+    TeacherCopyOut,
 )
 from app.auth.deps import get_current_user, get_db
 from app.auth.models import User
@@ -118,3 +119,18 @@ async def post_message(
         sources=[SourceOut(**s) if isinstance(s, dict) else SourceOut() for s in sources],
         clarification=clarification,
     )
+
+
+@router.get("/{conversation_id}/teacher-copy", response_model=TeacherCopyOut)
+async def get_teacher_copy(
+    conversation_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db)],
+    graph: Annotated[Any, Depends(get_conversation_graph)],
+    kind: str = "quiz",
+) -> TeacherCopyOut:
+    """نسخة المعلم بالإجابات من مسودة الرسم (kind: quiz/worksheet)."""
+    detail = await service.teacher_copy_detail(session, graph, user, conversation_id, kind)
+    text = detail["text"]
+    assert isinstance(text, str)
+    return TeacherCopyOut(kind=str(detail["kind"]), text=text)

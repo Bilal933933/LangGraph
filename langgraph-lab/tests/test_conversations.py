@@ -130,13 +130,13 @@ def test_send_message_saves_history_and_resumes(session: Session) -> None:
         f"/conversations/{conv_id}/messages", json={"message": "اهلا"}, headers=headers
     )
     assert first.status_code == 200, first.text
-    assert first.json()["reply"] == "fake-reply-to-1-messages"
+    assert first.json()["reply"] == "fake-reply-to-2-messages"
 
     second = client.post(
         f"/conversations/{conv_id}/messages", json={"message": "كمل"}, headers=headers
     )
     assert second.status_code == 200, second.text
-    assert second.json()["reply"] == "fake-reply-to-3-messages"
+    assert second.json()["reply"] == "fake-reply-to-4-messages"
 
     detail = client.get(f"/conversations/{conv_id}", headers=headers).json()
     assert [m["role"] for m in detail["messages"]] == ["user", "assistant", "user", "assistant"]

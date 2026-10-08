@@ -186,3 +186,18 @@ async def stream_message_detail(
                 clarification.model_dump() if clarification is not None else None
             ),
         }
+
+
+async def teacher_copy_detail(
+    session: Session, graph: Any, user: User, conversation_id: int, kind: str
+) -> dict[str, object]:
+    """ملكية ← قراءة مسودة الرسم ← نسخة المعلم (عرض فقط، بلا توليد ولا حفظ)."""
+    from app.rendering.registry import render_teacher_copy
+
+    conv = _owned_conversation(session, user, conversation_id)
+    thread = ChatService.thread_id_for_conversation(user.id, conv.id)
+    snapshot = await graph.aget_state({"configurable": {"thread_id": thread}})
+    values = snapshot.values
+    assert isinstance(values, dict)
+    cleaned = kind.strip().lower()
+    return {"kind": cleaned, "text": render_teacher_copy(values, cleaned)}

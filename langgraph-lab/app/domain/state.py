@@ -15,6 +15,8 @@ from app.domain.models import (
     TeacherContext,
     WorksheetRequest,
 )
+from app.domain.outputs.quiz import QuizOutput
+from app.domain.outputs.worksheet import WorksheetOutput
 
 
 def _append_sections(
@@ -87,3 +89,5 @@ class ChatState(TypedDict):
     section_task: NotRequired[str | None]
     plan_sections: NotRequired[Annotated[list[dict[str, object]], _append_sections]]
     plan_draft: NotRequired[LessonPlan]
+    quiz_draft: NotRequired[QuizOutput]
+    worksheet_draft: NotRequired[WorksheetOutput]

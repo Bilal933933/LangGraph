@@ -11,11 +11,13 @@ export function MessageList({
   sending,
   stage,
   onRetry,
+  onTeacherCopy,
 }: {
   messages: ChatMessage[];
   sending: boolean;
   stage?: string | null;
   onRetry: () => void;
+  onTeacherCopy?: () => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +32,12 @@ export function MessageList({
         className="mx-auto flex w-full max-w-3xl flex-col gap-6 py-6"
       >
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} onRetry={onRetry} />
+          <MessageBubble
+            key={message.id}
+            message={message}
+            onRetry={onRetry}
+            onTeacherCopy={message.role === "assistant" ? onTeacherCopy : undefined}
+          />
         ))}
         {sending && <TypingIndicator stage={stage} />}
         <div ref={endRef} />

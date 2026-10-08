@@ -23,9 +23,11 @@ function formatTime(value: number): string {
 export function MessageBubble({
   message,
   onRetry,
+  onTeacherCopy,
 }: {
   message: ChatMessage;
   onRetry: () => void;
+  onTeacherCopy?: () => void;
 }) {
   if (message.role === "assistant") {
     const { body, lines } = splitSourcesBlock(message.text);
@@ -38,9 +40,18 @@ export function MessageBubble({
         ) : (
           <SourcesFromText lines={lines} />
         )}
-        <time className="text-[11px] text-muted-foreground">
-          {formatTime(message.createdAt)}
-        </time>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <time>{formatTime(message.createdAt)}</time>
+          {onTeacherCopy && (
+            <button
+              type="button"
+              onClick={onTeacherCopy}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              نسخة المعلم
+            </button>
+          )}
+        </div>
       </div>
     );
   }

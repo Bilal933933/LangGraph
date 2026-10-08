@@ -2,6 +2,8 @@
 
 import re
 
+from app.domain.outputs.worksheet import WorksheetOutput
+
 #: أسطر مرقمة: "1)" أو "س1:" أو "تمرين 2." في بداية السطر.
 _ITEM_MARK = re.compile(r"(?m)^\s*(?:تمرين\s*)?(?:س(?:ؤال)?\s*)?\d+\s*[.)\-:]")
 
@@ -53,4 +55,23 @@ def evaluate_worksheet_text(
         "num_items_required": num_items,
         "has_answer_key": has_answer_key(text),
         "has_differentiation": has_differentiation(text),
+    }
+
+
+def evaluate_worksheet_output(worksheet: object, num_items: int) -> dict[str, object]:
+    """ورقة متحقق منها + العدد المطلوب ← فحوصات (عدد، فراغ، إجابات ناقصة، تمايز)."""
+    if not isinstance(worksheet, WorksheetOutput):
+        return {"valid": False, "reason": "not WorksheetOutput"}
+    blank = sum(1 for item in worksheet.items if not item.instruction)
+    missing_answers = sum(1 for item in worksheet.items if not item.expected_answer)
+    diffs = {item.differentiation for item in worksheet.items}
+    return {
+        "valid": blank == 0,
+        "item_count": len(worksheet.items),
+        "num_items_required": num_items,
+        "count_ok": len(worksheet.items) >= num_items,
+        "blank_instructions": blank,
+        "missing_answers": missing_answers,
+        "has_differentiation": bool(diffs - {"core"}),
+        "schema_version": worksheet.schema_version,
     }

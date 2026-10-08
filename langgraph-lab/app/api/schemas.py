@@ -83,3 +83,10 @@ class SendMessageOut(BaseModel):
     reply: str
     sources: list[SourceOut] = Field(default_factory=list)
     clarification: ClarificationOut | None = None
+
+
+class TeacherCopyOut(BaseModel):
+    """نسخة المعلم: نوع + نص معروض بالإجابات (لا تُحفظ كرسالة)."""
+
+    kind: str
+    text: str
