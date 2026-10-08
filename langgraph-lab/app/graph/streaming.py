@@ -16,6 +16,9 @@ StreamEvent = dict[str, object]
 
 _STREAM_MODES = ["updates", "messages", "values"]
 
+#: عقد النص المرئي فقط: رموز غير answer (أدوات/خطط) ← stage فقط بلا فقاعة.
+_TEXT_TOKEN_NODES = frozenset({"answer"})
+
 
 def invoke_sync(
     graph: Any, payload: dict[str, object], config: dict[str, object]
@@ -56,7 +59,7 @@ async def stream_run(
                     yield {"type": "stage", "node": str(node)}
             elif mode == "messages":
                 text, node = _token_parts(data)
-                if text != "":
+                if text != "" and node in _TEXT_TOKEN_NODES:
                     yield {"type": "token", "node": node, "text": text}
             elif mode == "values" and isinstance(data, dict):
                 final = data

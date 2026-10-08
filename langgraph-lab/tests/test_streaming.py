@@ -81,6 +81,24 @@ def test_empty_token_chunks_skipped() -> None:
     assert [e["type"] for e in events] == ["done"]
 
 
+def test_non_answer_tokens_suppressed() -> None:
+    from app.graph.streaming import stream_run as _stream_run
+
+    async def _run() -> list[dict[str, object]]:
+        graph = FakeStreamGraph(
+            [
+                ("messages", (AIMessageChunk(content='{"tool":1}'), {"langgraph_node": "quiz_agent"})),
+                ("messages", (AIMessageChunk(content="مرحب"), {"langgraph_node": "answer"})),
+                ("values", _final_state()),
+            ]
+        )
+        return [e async for e in _stream_run(graph, {"messages": []}, {})]
+
+    events = _run_sync(_run())
+    tokens = [e for e in events if e["type"] == "token"]
+    assert tokens == [{"type": "token", "node": "answer", "text": "مرحب"}]
+
+
 def test_graph_error_becomes_error_event() -> None:
     class Boom:
         async def astream(

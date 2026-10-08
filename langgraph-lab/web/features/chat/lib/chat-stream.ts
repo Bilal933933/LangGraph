@@ -42,6 +42,7 @@ function dispatchFrame(frame: string, handlers: StreamHandlers): void {
     handlers.onStage?.((data as { node: string }).node);
   } else if (
     event === "token" &&
+    (data as { node?: unknown }).node === "answer" &&
     typeof (data as { text?: unknown }).text === "string"
   ) {
     handlers.onToken?.((data as { text: string }).text);
