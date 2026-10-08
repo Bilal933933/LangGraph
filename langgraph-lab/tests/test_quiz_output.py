@@ -1,4 +1,4 @@
-﻿"""اختبارات المخرج المهيكل للاختبار والحجب من الخادم."""
+"""اختبارات المخرج المهيكل للاختبار والحجب من الخادم."""
 
 import pytest
 from pydantic import ValidationError
@@ -83,4 +83,30 @@ def test_evaluate_output() -> None:
     assert result["valid"] is True
     assert result["count_ok"] is True
     assert result["schema_version"] == "v1"
+    assert result["total_points"] == 100
+    assert result["total_mismatch"] is False
+
+
+def test_total_mismatch_flagged() -> None:
+    raw = _quiz_dict()
+    raw["questions"][0]["points"] = 0
+    raw["questions"][1]["points"] = 0
+    quiz = QuizOutput.model_validate(raw)
+    result = evaluate_quiz_output(quiz, 2)
+    assert result["total_points"] == 0
+    assert result["total_mismatch"] is True
+    assert "المجموع: 0" in render_quiz_output(quiz)
+
+
+def test_option_letters_are_alif_ba_jeem_dal() -> None:
+    quiz = QuizOutput.model_validate(_quiz_dict())
+    text = render_quiz_output(quiz)
+    for letter in ("ا)", "ب)", "ج)", "د)"):
+        assert letter in text
+    assert "ة)" not in text
+
+
+def test_header_shows_computed_total() -> None:
+    quiz = QuizOutput.model_validate(_quiz_dict())
+    assert "المجموع: 100" in render_quiz_output(quiz)
 

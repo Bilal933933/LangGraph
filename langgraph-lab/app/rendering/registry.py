@@ -1,4 +1,4 @@
-﻿"""سجل المخرجات: نية الانتاج ← (المخطط، العارض)."""
+"""سجل المخرجات: نية الانتاج ← (المخطط، العارض)."""
 
 from app.core.errors import AppError, ErrorCode
 from app.domain.models import LessonPlan

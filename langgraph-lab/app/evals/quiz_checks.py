@@ -76,6 +76,7 @@ def evaluate_quiz_output(quiz: object, num_questions: int) -> dict[str, object]:
     duplicate_options = sum(
         1 for question in quiz.questions if len(set(question.options)) != len(question.options)
     )
+    total = sum(question.points for question in quiz.questions)
     return {
         "valid": bad_index == 0 and duplicate_options == 0,
         "question_count": len(quiz.questions),
@@ -83,5 +84,7 @@ def evaluate_quiz_output(quiz: object, num_questions: int) -> dict[str, object]:
         "count_ok": len(quiz.questions) >= num_questions,
         "bad_answer_index": bad_index,
         "duplicate_options": duplicate_options,
+        "total_points": total,
+        "total_mismatch": total != 100,
         "schema_version": quiz.schema_version,
     }

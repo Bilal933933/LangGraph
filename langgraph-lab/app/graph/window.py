@@ -17,6 +17,7 @@ def select_window(
 
     أمان Gemini: تُسقط القائدة غير البشرية حتى أول human حتى لا
     تبدأ النافذة بـ ai/tool ولا تُيتّم ToolMessage عن AIMessage(tool_calls).
+    ضمانان: الأحدث محفوظ دائمًا، والتراجع للخلف مسقوف بضعف الحد.
     """
     if limit <= 0:
         return []
@@ -24,9 +25,13 @@ def select_window(
         window = list(messages)
     else:
         start = len(messages) - limit
-        while start > 0 and getattr(messages[start], "type", None) != "human":
+        while (
+            start > 0
+            and getattr(messages[start], "type", None) != "human"
+            and len(messages) - start < limit * 2
+        ):
             start -= 1
-        window = list(messages[start : start + limit])
+        window = list(messages[start:])
     for i, message in enumerate(window):
         if getattr(message, "type", None) == "human":
             return window[i:]

@@ -1,4 +1,4 @@
-﻿"""العرض الحتمي للمخرجات (Renderer فقط، بلا LLM)."""
+"""العرض الحتمي للمخرجات (Renderer فقط، بلا LLM)."""
 
 from app.rendering.registry import (
     SUPPORTED_INTENTS,

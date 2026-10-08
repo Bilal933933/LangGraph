@@ -50,3 +50,41 @@ def test_all_ai_returns_empty_never_starts_ai() -> None:
 
 def test_default_limit_constant() -> None:
     assert CONTEXT_WINDOW_MESSAGES == 20
+
+
+def _long_history(total: int) -> list:
+    """سجل طويل بالتناوب بشر/آلي، والأحدث بشر دائمًا."""
+    msgs = []
+    for pos in range(total - 1):
+        cls = HumanMessage if pos % 2 == 0 else AIMessage
+        msgs.append(cls(content=f"m{pos}"))
+    msgs.append(HumanMessage(content="latest"))
+    return msgs
+
+
+def test_newest_message_always_kept() -> None:
+    msgs = _long_history(29)
+    window = select_window(msgs, 20)
+    assert window
+    assert window[-1] is msgs[-1]
+    assert window[0].type == "human"
+
+
+def test_newest_kept_when_start_is_not_human() -> None:
+    msgs = _long_history(28)
+    msgs.insert(8, AIMessage(content="stray"))
+    window = select_window(msgs, 20)
+    assert window
+    assert window[-1] is msgs[-1]
+    assert window[0].type == "human"
+
+
+def test_walk_back_capped_at_double_limit() -> None:
+    msgs = [HumanMessage(content="old")]
+    msgs += [ToolMessage(content=f"r{i}", tool_call_id=str(i)) for i in range(40)]
+    msgs.append(HumanMessage(content="latest"))
+    window = select_window(msgs, 10)
+    assert len(window) <= 20
+    if window:
+        assert window[0].type == "human"
+        assert window[-1] is msgs[-1]

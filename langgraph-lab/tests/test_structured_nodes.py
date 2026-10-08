@@ -1,4 +1,4 @@
-﻿"""اختبارات الربط المهيكل: retry واحدة ثم خطأ صريح، وحفظ المسودات."""
+"""اختبارات الربط المهيكل: retry واحدة ثم خطأ صريح، وحفظ المسودات."""
 
 from typing import Any
 
@@ -66,6 +66,16 @@ class FixedModel:
         return AIMessage(content="TEXT-REPLY")
 
 
+class RecordingModel(FixedModel):
+    def __init__(self) -> None:
+        self.seen: list[BaseMessage] = []
+
+    def invoke(self, messages: list[BaseMessage], callbacks: Any = None) -> AIMessage:
+        _ = callbacks
+        self.seen = list(messages)
+        return AIMessage(content="TEXT-REPLY")
+
+
 def _fail() -> AppError:
     return AppError(ErrorCode.INVALID_MODEL_OUTPUT, "bad shape")
 
@@ -87,9 +97,11 @@ def test_retry_once_then_succeeds() -> None:
 
 def test_double_failure_raises() -> None:
     fake = ScriptedStructured([_fail(), _fail()])
-    with pytest.raises(AppError):
-        parse_with_retry(fake, [HumanMessage(content="hi")], QuizOutput)
+    with pytest.raises(AppError) as info:
+        parse_with_retry(fake, [HumanMessage(content="hi")], QuizOutput, what="اختبار")
     assert fake.calls == 2
+    assert info.value.code == ErrorCode.INVALID_MODEL_OUTPUT
+    assert "اختبار" in info.value.message and "حاول" in info.value.message
 
 
 def test_quiz_agent_structured_stores_draft_and_hides() -> None:
@@ -103,6 +115,25 @@ def test_quiz_agent_structured_stores_draft_and_hides() -> None:
     texts = [str(m.content) for m in result["messages"]]  # type: ignore[union-attr]
     assert any("QS" in t for t in texts)
     assert all("QE" not in t for t in texts)
+
+
+def test_quiz_agent_history_starts_human() -> None:
+    model = RecordingModel()
+    node = make_quiz_agent_node(model)  # type: ignore[arg-type]
+    state = {
+        "messages": [
+            AIMessage(content="old"),
+            HumanMessage(content="h1"),
+            AIMessage(content="a1"),
+            HumanMessage(content="h2"),
+            AIMessage(content="a2"),
+            HumanMessage(content="quiz please"),
+        ]
+    }
+    node(state)  # type: ignore[arg-type]
+    history = model.seen[3:]
+    assert history and history[0].type == "human"
+    assert history[-1].type == "human"
 
 
 def test_quiz_agent_legacy_without_structured() -> None:

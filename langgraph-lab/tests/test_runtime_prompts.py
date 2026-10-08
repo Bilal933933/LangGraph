@@ -1,4 +1,4 @@
-﻿"""اختبارات ثابتة لبرومبتات التشغيل (بلا شبكة)."""
+"""اختبارات ثابتة لبرومبتات التشغيل (بلا شبكة)."""
 
 import app.graph.prompts as prompts
 from app.graph.prompts.runtime.answer import ANSWER_SYSTEM

@@ -190,7 +190,7 @@ def make_worksheet_write_node(
         prompt.append(HumanMessage(content=f"أنشئ ورقة العمل عن: {topic} ({grade})"))
         if structured is not None:
             emit_progress("worksheet_write", "shaping")
-            sheet = parse_with_retry(structured, prompt, WorksheetOutput)
+            sheet = parse_with_retry(structured, prompt, WorksheetOutput, what="ورقة عمل")
             paper = render_for_intent("generate_worksheet", sheet)
             out = AIMessage(content=paper)
             out.name = "worksheet_write"

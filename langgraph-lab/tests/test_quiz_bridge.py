@@ -1,4 +1,4 @@
-﻿"""اختبارات ثابتة لجسر الاختبار (بلا شبكة)."""
+"""اختبارات ثابتة لجسر الاختبار (بلا شبكة)."""
 
 from app.domain.models import LessonPlan, QuizRequest
 from app.graph.nodes.quiz_bridge import build_quiz_shape_prompt, quiz_request_from_plan

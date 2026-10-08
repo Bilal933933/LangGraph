@@ -21,7 +21,7 @@ from app.graph.nodes.quiz_bridge import build_quiz_shape_prompt
 from app.graph.nodes.structured_retry import parse_with_retry
 from app.graph.progress import emit as emit_progress
 from app.graph.prompts.runtime.quiz import QUIZ_AGENT_SYSTEM
-from app.graph.window import CONTEXT_WINDOW_MESSAGES, select_window
+from app.graph.window import select_window
 from app.rendering.registry import render_for_intent
 
 
@@ -54,7 +54,7 @@ def make_quiz_agent_node(
         shape = build_quiz_shape_prompt(request, plan)
         messages = list(state["messages"])
         last_text = message_text(messages[-1].content) if messages else ""
-        history = select_window(messages, CONTEXT_WINDOW_MESSAGES)
+        history = select_window(messages, 4)
         prompt: list[BaseMessage] = [
             SystemMessage(content=QUIZ_AGENT_SYSTEM),
             SystemMessage(content=shape),
@@ -66,7 +66,7 @@ def make_quiz_agent_node(
                 prompt.append(SystemMessage(content=instruction))
         prompt += [
             HumanMessage(content=f"ولد اختبارا عن: {topic or last_text}"),
-            *history[-4:],
+            *history,
         ]
         return prompt, topic or last_text
 
@@ -88,6 +88,7 @@ def make_quiz_agent_node(
                 HumanMessage(content=message_text(reply.content)),
             ],
             QuizOutput,
+            what="اختبار",
         )
         paper = AIMessage(content=render_for_intent("generate_quiz", quiz))
         paper.name = "quiz_agent"

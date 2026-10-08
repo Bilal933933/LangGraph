@@ -1,4 +1,4 @@
-﻿"""اختبارات نسخة المعلم واحداث التقدم (بلا توليد)."""
+"""اختبارات نسخة المعلم واحداث التقدم (بلا توليد)."""
 
 import asyncio
 from collections.abc import AsyncIterator
