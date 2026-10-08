@@ -34,7 +34,12 @@ def _canonical(state: ChatState) -> CanonicalRequest | None:
 def _resume_incomplete(state: ChatState) -> RequestTarget | None:
     """طلب ناقص + نية غامضة ← عقدة الاستكمال السابقة."""
     req = _canonical(state)
-    missing = list(req.missing) if req is not None else list(state.get("missing_fields", []))
+    canon_missing = list(req.missing) if req is not None else []
+    # "ناقص" = اتحاد canonical.missing + missing_fields (دقائق/أسئلة
+    # تحفظها plan/quiz_extract في missing_fields دون تحديث canonical).
+    state_missing = state.get("missing_fields", [])
+    state_list = list(state_missing) if isinstance(state_missing, list) else []
+    missing = list(dict.fromkeys(canon_missing + state_list))
     if not missing:
         return None
     intent = req.intent if req is not None else str(state.get("intent", ""))

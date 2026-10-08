@@ -79,8 +79,25 @@ def make_parse_request_node(
                     continue
         if fresh is None:
             fresh = CanonicalRequest(intent=DEFAULT_INTENT)
-        # دمج Revision: الفارغ الجديد يرث من السابق (لا مهمة جديدة دائما).
-        if prev is not None and fresh.intent in (*AMBIGUOUS_INTENTS, prev.intent):
+        # دمج Revision: الوراثة فقط عند طلب سابق ناقص ونية جديدة غامضة.
+        # النيات اللاصقة (تحية/ملف/رفض) لا تورث أبدا، والمكتمل ينتهي.
+        # "ناقص" = اتحاد canonical.missing + missing_fields (دقائق/أسئلة
+        # تحفظها plan/quiz_extract في missing_fields دون تحديث canonical).
+        _NON_STICKY_PREV = ("greeting", "update_profile", "unsupported")
+        state_missing = state.get("missing_fields", [])
+        state_missing_list = list(state_missing) if isinstance(state_missing, list) else []
+        prev_canon_missing = list(prev.missing) if prev is not None else []
+        prev_missing = list(dict.fromkeys(prev_canon_missing + state_missing_list))
+        should_resume = (
+            prev is not None
+            and prev.intent not in _NON_STICKY_PREV
+            and bool(prev_missing)
+            and (
+                fresh.intent in AMBIGUOUS_INTENTS
+                or fresh.intent == prev.intent
+            )
+        )
+        if should_resume and prev is not None:
             merged = CanonicalRequest(
                 intent=prev.intent,
                 task=fresh.task or prev.task,
