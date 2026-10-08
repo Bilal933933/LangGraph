@@ -63,6 +63,7 @@ def make_save_profile_node(
             return {
                 "messages": [AIMessage(content=text)],
                 "pending_profile_name": None,
+                "missing_fields": ["name"],
             }
         if writer is None:
             text = "خدمة الحفظ غير مهيأة الآن، حاول لاحقا."
@@ -81,15 +82,19 @@ def make_save_profile_node(
         return {
             "messages": [AIMessage(content=text)],
             "pending_profile_name": None,
+            "missing_fields": [],
         }
 
     return _save
 
 
-def ask_profile_name_node(state: ChatState) -> dict[str, list[BaseMessage]]:
-    """لا اسم مستخرج ← سؤال مباشر عن الاسم."""
+def ask_profile_name_node(state: ChatState) -> dict[str, object]:
+    """لا اسم مستخرج ← سؤال مباشر عن الاسم مع وسم النقص."""
     _ = state
-    return {"messages": [AIMessage(content="ما الاسم الذي تريد تسجيله؟")]}
+    return {
+        "messages": [AIMessage(content="ما الاسم الذي تريد تسجيله؟")],
+        "missing_fields": ["name"],
+    }
 
 
 _PROFILE_FIELDS = ("name", "subject", "grades")

@@ -80,10 +80,9 @@ def make_parse_request_node(
         if fresh is None:
             fresh = CanonicalRequest(intent=DEFAULT_INTENT)
         # دمج Revision: الوراثة فقط عند طلب سابق ناقص ونية جديدة غامضة.
-        # النيات اللاصقة (تحية/ملف/رفض) لا تورث أبدا، والمكتمل ينتهي.
-        # "ناقص" = اتحاد canonical.missing + missing_fields (دقائق/أسئلة
-        # تحفظها plan/quiz_extract في missing_fields دون تحديث canonical).
-        _NON_STICKY_PREV = ("greeting", "update_profile", "unsupported")
+        # تحية/رفض لا تورث أبدا، والمكتمل ينتهي. update_profile الناقص
+        # (سؤال اسم معلق) يستثنى فيستأنف، والمكتمل منه ينتهي.
+        _NON_STICKY_PREV = ("greeting", "unsupported")
         state_missing = state.get("missing_fields", [])
         state_missing_list = list(state_missing) if isinstance(state_missing, list) else []
         prev_canon_missing = list(prev.missing) if prev is not None else []
